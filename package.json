@@ -1,0 +1,45 @@
+{
+  "name": "texture-mcp",
+  "version": "0.1.0",
+  "description": "A procedural texture generation tool exposed via MCP.",
+  "license": "MIT",
+  "type": "module",
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "texture",
+    "procedural-texture",
+    "texture-generator",
+    "recipe",
+    "preset"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/shawn0326/texture-mcp.git"
+  },
+  "bugs": {
+    "url": "https://github.com/shawn0326/texture-mcp/issues"
+  },
+  "homepage": "https://github.com/shawn0326/texture-mcp#readme",
+  "bin": {
+    "texture-mcp": "./dist/mcp/index.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/mcp/index.js",
+    "test": "npm run build && node --test"
+  },
+  "devDependencies": {
+    "@types/node": "^24.5.2",
+    "typescript": "^5.9.2"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.27.1",
+    "@napi-rs/canvas": "^0.1.82",
+    "zod": "^4.3.6"
+  }
+}
