@@ -1,6 +1,6 @@
 # texture-mcp
 
-A procedural texture generation tool exposed via MCP, converting high-level semantic presets into executable recipes — enabling controllable, AI-driven texture creation without relying on generative image models.
+A procedural 2D VFX texture generator exposed via MCP, using presets and recipes to produce controllable and reproducible visual assets for AI workflows.
 
 ## Development
 
