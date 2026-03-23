@@ -1,4 +1,5 @@
 import { generateTextureInputSchema } from "./schema.js";
+import { DEFAULT_TEXTURE_SEED } from "./limits.js";
 import { getPresetDefinition } from "./presets.js";
 import { normalizeRecipe } from "./recipe.js";
 import { renderRecipe } from "./renderer.js";
@@ -21,7 +22,7 @@ function resolveSeed(seed?: number): number {
     return seed;
   }
 
-  return Math.floor(Math.random() * 2_147_483_647);
+  return DEFAULT_TEXTURE_SEED;
 }
 
 function resolveRecipe(input: GenerateTextureInput): {

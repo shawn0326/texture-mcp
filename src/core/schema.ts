@@ -1,10 +1,68 @@
 import * as z from "zod/v4";
+import {
+  MAX_RECIPE_DEPTH,
+  MAX_RECIPE_LAYERS,
+  MAX_TEXTURE_DIMENSION,
+  MAX_TEXTURE_PIXELS
+} from "./limits.js";
+import { getRecipeStats } from "./recipe-analysis.js";
+import type { LayerSpec } from "./types.js";
 
 export const imageFormatSchema = z.enum(["png", "jpeg", "webp"]);
 export const paramsRecordSchema = z.record(z.string(), z.unknown());
 export const jsonSchemaObjectSchema = z.record(z.string(), z.unknown());
 export const normalizedNumberSchema = z.number().min(0).max(1);
 export const cssColorSchema = z.string().min(1);
+const textureDimensionSchema = z
+  .number()
+  .int()
+  .positive()
+  .max(MAX_TEXTURE_DIMENSION, {
+    message: `Texture dimensions must not exceed ${MAX_TEXTURE_DIMENSION} pixels.`
+  });
+
+function validateRenderArea(
+  value: {
+    width: number;
+    height: number;
+  },
+  context: z.RefinementCtx
+): void {
+  if (value.width * value.height <= MAX_TEXTURE_PIXELS) {
+    return;
+  }
+
+  context.addIssue({
+    code: "custom",
+    path: ["width"],
+    message: `The requested texture area must not exceed ${MAX_TEXTURE_PIXELS} pixels.`
+  });
+}
+
+function validateRecipeComplexity(
+  value: {
+    layers: unknown[];
+  },
+  context: z.RefinementCtx
+): void {
+  const stats = getRecipeStats(value.layers as LayerSpec[]);
+
+  if (stats.totalLayers > MAX_RECIPE_LAYERS) {
+    context.addIssue({
+      code: "custom",
+      path: ["layers"],
+      message: `Recipes must not exceed ${MAX_RECIPE_LAYERS} total layers.`
+    });
+  }
+
+  if (stats.maxDepth > MAX_RECIPE_DEPTH) {
+    context.addIssue({
+      code: "custom",
+      path: ["layers"],
+      message: `Recipe nesting depth must not exceed ${MAX_RECIPE_DEPTH}.`
+    });
+  }
+}
 
 export const xySchema = z
   .object({
@@ -80,15 +138,17 @@ export const recipeSchema = z
     version: z.literal(1),
     layers: z.array(layerSpecSchema)
   })
-  .strict();
+  .strict()
+  .superRefine(validateRecipeComplexity);
 
 export const renderOptionsSchema = z
   .object({
-    width: z.number().int().positive(),
-    height: z.number().int().positive(),
+    width: textureDimensionSchema,
+    height: textureDimensionSchema,
     seed: z.number().int().nonnegative().optional()
   })
-  .strict();
+  .strict()
+  .superRefine(validateRenderArea);
 
 export const metaSchema = z
   .object({
@@ -109,12 +169,14 @@ export const generateTextureInputSchema = z
     preset: z.string().min(1).optional(),
     params: paramsRecordSchema.optional(),
     recipe: recipeSchema.optional(),
-    width: z.number().int().positive(),
-    height: z.number().int().positive(),
+    width: textureDimensionSchema,
+    height: textureDimensionSchema,
     seed: z.number().int().nonnegative().optional()
   })
   .strict()
   .superRefine((value, context) => {
+    validateRenderArea(value, context);
+
     if (value.mode === "preset" && !value.preset) {
       context.addIssue({
         code: "custom",

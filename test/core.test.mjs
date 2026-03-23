@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdtemp, mkdir, readFile, rm, symlink } from "node:fs/promises";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import path from "node:path";
 
@@ -20,6 +20,12 @@ const {
 const { renderRecipe, renderRecipeToCanvas } = await import(
   pathToFileURL(path.join(projectRoot, "dist", "core", "renderer.js")).href
 );
+const {
+  DEFAULT_TEXTURE_SEED,
+  MAX_RECIPE_DEPTH,
+  MAX_RECIPE_LAYERS,
+  MAX_TEXTURE_DIMENSION
+} = await import(pathToFileURL(path.join(projectRoot, "dist", "core", "limits.js")).href);
 const {
   exportTexture,
   resolveExportPaths
@@ -110,6 +116,28 @@ function readPixel(canvas, x, y) {
     b: data[2],
     a: data[3]
   };
+}
+
+function createCircleLayer() {
+  return {
+    type: "circle",
+    center: { x: 0.5, y: 0.5 },
+    radius: 0.2,
+    color: "#ffffff"
+  };
+}
+
+function createNestedGroup(depth) {
+  let layer = createCircleLayer();
+
+  for (let index = 0; index < depth - 1; index += 1) {
+    layer = {
+      type: "group",
+      children: [layer]
+    };
+  }
+
+  return layer;
 }
 
 test("core: pixel test for circle fill", () => {
@@ -218,6 +246,34 @@ test("core: renderRecipe is deterministic for the same seed", () => {
   assert.notDeepEqual(first, third);
 });
 
+test("core: createRecipe rejects recipes with too many total layers", () => {
+  const layers = Array.from({ length: MAX_RECIPE_LAYERS + 1 }, () => createCircleLayer());
+
+  assert.throws(
+    () => createRecipe(layers),
+    /must not exceed .* total layers/i
+  );
+});
+
+test("core: createRecipe rejects recipes that exceed nesting depth", () => {
+  assert.throws(
+    () => createRecipe([createNestedGroup(MAX_RECIPE_DEPTH + 1)]),
+    /nesting depth must not exceed/i
+  );
+});
+
+test("core: renderRecipe rejects oversized dimensions", () => {
+  assert.throws(
+    () =>
+      renderRecipe(createRecipe([createCircleLayer()]), {
+        width: MAX_TEXTURE_DIMENSION + 1,
+        height: 64,
+        seed: 1
+      }),
+    /must not exceed .* pixels/i
+  );
+});
+
 test("core: resolveExportPaths rejects absolute and escaping paths", async () => {
   const workspaceRoot = await mkdtemp(path.join(projectRoot, ".tmp-export-paths-"));
 
@@ -232,6 +288,25 @@ test("core: resolveExportPaths rejects absolute and escaping paths", async () =>
     );
   } finally {
     await rm(workspaceRoot, { recursive: true, force: true });
+  }
+});
+
+test("core: resolveExportPaths rejects junction-based workspace escapes", async () => {
+  const workspaceRoot = await mkdtemp(path.join(projectRoot, ".tmp-export-junction-"));
+  const outsideRoot = await mkdtemp(path.join(projectRoot, ".tmp-export-outside-"));
+  const junctionPath = path.join(workspaceRoot, "linked-outside");
+
+  try {
+    await mkdir(path.join(outsideRoot, "nested"), { recursive: true });
+    await symlink(outsideRoot, junctionPath, "junction");
+
+    assert.throws(
+      () => resolveExportPaths(workspaceRoot, path.join("linked-outside", "nested", "result.png")),
+      /resolves outside the workspace root/i
+    );
+  } finally {
+    await rm(workspaceRoot, { recursive: true, force: true });
+    await rm(outsideRoot, { recursive: true, force: true });
   }
 });
 
@@ -344,4 +419,39 @@ test("core: generateTexture preserves explicit recipe input", () => {
   assert.equal(generated.meta.preset, undefined);
   assert.equal(generated.meta.params, undefined);
   assert.equal(generated.output.seed, 9);
+});
+
+test("core: generateTexture uses the default seed when none is provided", () => {
+  const first = generateTexture({
+    mode: "preset",
+    preset: "glow",
+    width: 64,
+    height: 64
+  });
+  const second = generateTexture({
+    mode: "preset",
+    preset: "glow",
+    width: 64,
+    height: 64
+  });
+
+  assert.equal(first.output.seed, DEFAULT_TEXTURE_SEED);
+  assert.equal(first.meta.seed, DEFAULT_TEXTURE_SEED);
+  assert.equal(second.output.seed, DEFAULT_TEXTURE_SEED);
+  assert.deepEqual(first.recipe, second.recipe);
+  assert.deepEqual(first.imageBuffer, second.imageBuffer);
+});
+
+test("core: generateTexture rejects requests with oversized texture area", () => {
+  assert.throws(
+    () =>
+      generateTexture({
+        mode: "preset",
+        preset: "glow",
+        width: 4096,
+        height: 2048,
+        seed: 1
+      }),
+    /texture area must not exceed/i
+  );
 });

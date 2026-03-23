@@ -207,6 +207,19 @@ test("mcp integration: invalid calls return tool errors", async () => {
 
     assert.equal(exportWithoutGenerateResult.isError, true, session.getStderr());
     assert.match(exportWithoutGenerateResult.content[0].text, /Run `generate_texture` first/);
+
+    const oversizedGenerateResult = await session.request("tools/call", {
+      name: "generate_texture",
+      arguments: {
+        mode: "preset",
+        preset: "glow",
+        width: 5000,
+        height: 64
+      }
+    });
+
+    assert.equal(oversizedGenerateResult.isError, true, session.getStderr());
+    assert.match(oversizedGenerateResult.content[0].text, /4096/);
   } finally {
     await session.close();
   }
