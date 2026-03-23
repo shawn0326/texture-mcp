@@ -2,25 +2,35 @@ import type { CallToolResult, ListToolsResult } from "@modelcontextprotocol/sdk/
 import * as z from "zod/v4";
 import { exportTexture } from "../core/export.js";
 import { generateTexture } from "../core/generate.js";
+import { getLayerSchemaInfo, listLayerCatalog } from "../core/layers.js";
 import {
   getPresetSchemaInfo,
   listPresetCatalog
 } from "../core/presets.js";
+import { validateRecipe } from "../core/validate.js";
 import {
   exportTextureInputSchema,
   exportTextureOutputSchema,
   generateTextureInputSchema,
   generateTextureOutputSchema,
+  getLayerSchemaInputSchema,
+  getLayerSchemaOutputSchema,
   getPresetSchemaInputSchema,
   getPresetSchemaOutputSchema,
+  listLayerTypesInputSchema,
+  listLayerTypesOutputSchema,
   listPresetsInputSchema,
-  listPresetsOutputSchema
+  listPresetsOutputSchema,
+  validateRecipeInputSchema,
+  validateRecipeOutputSchema
 } from "../core/schema.js";
 import {
   type JsonSchemaObject,
   type ExportTextureInput,
   type GenerateTextureInput,
+  type GetLayerSchemaInput,
   type GetPresetSchemaInput,
+  type ListLayerTypesOutput,
   type ListPresetsOutput
 } from "../core/types.js";
 import { getCurrentResult, setCurrentResult, type AppState } from "./state.js";
@@ -110,6 +120,35 @@ export function createTextureToolDefinitions(state: AppState): TextureToolDefini
       }
     },
     {
+      name: "list_layer_types",
+      title: "List Layer Types",
+      description: "List supported recipe layer types and whether they are draw or effect layers.",
+      inputSchema: listLayerTypesInputSchema,
+      outputSchema: listLayerTypesOutputSchema,
+      execute: async () => {
+        const layers: ListLayerTypesOutput["layers"] = listLayerCatalog();
+
+        return createToolSuccess(JSON.stringify(layers, null, 2), { layers });
+      }
+    },
+    {
+      name: "get_layer_schema",
+      title: "Get Layer Schema",
+      description: "Return schema and semantic notes for a specific layer type.",
+      inputSchema: getLayerSchemaInputSchema,
+      outputSchema: getLayerSchemaOutputSchema,
+      execute: async (input) => {
+        const parsedInput = input as GetLayerSchemaInput;
+        const layerSchema = getLayerSchemaInfo(parsedInput.type);
+
+        if (!layerSchema) {
+          return createToolError(`Unknown layer type: ${parsedInput.type}`);
+        }
+
+        return createToolSuccess(JSON.stringify(layerSchema, null, 2), layerSchema);
+      }
+    },
+    {
       name: "list_presets",
       title: "List Presets",
       description: "List the placeholder preset catalog.",
@@ -141,6 +180,21 @@ export function createTextureToolDefinitions(state: AppState): TextureToolDefini
           defaultParams: presetDefinition.defaultParams,
           schema: presetDefinition.schema
         });
+      }
+    },
+    {
+      name: "validate_recipe",
+      title: "Validate Recipe",
+      description: "Validate a recipe, returning errors or the normalized recipe and stats.",
+      inputSchema: validateRecipeInputSchema,
+      outputSchema: validateRecipeOutputSchema,
+      execute: async (input) => {
+        const result = validateRecipe((input as { recipe: unknown }).recipe);
+        const text = result.valid
+          ? "Recipe is valid."
+          : `Recipe is invalid:\n${result.errors.map((error) => `- ${error.path}: ${error.message}`).join("\n")}`;
+
+        return createToolSuccess(text, result);
       }
     }
   ];

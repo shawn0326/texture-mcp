@@ -11,8 +11,13 @@ export type XY = {
   y: number;
 };
 
-export type RadialGradientLayer = {
-  type: "radialGradient";
+export type Size2D = {
+  width: number;
+  height: number;
+};
+
+export type GradientCircleLayer = {
+  type: "gradientCircle";
   center: XY;
   radius: number;
   colors: string[];
@@ -33,6 +38,25 @@ export type RingLayer = {
   color: string;
 };
 
+export type RectLayer = {
+  type: "rect";
+  origin: XY;
+  size: Size2D;
+  cornerRadius?: number;
+  color: string;
+};
+
+export type GradientRectDirection = "horizontal" | "vertical";
+
+export type GradientRectLayer = {
+  type: "gradientRect";
+  origin: XY;
+  size: Size2D;
+  cornerRadius?: number;
+  direction: GradientRectDirection;
+  colors: string[];
+};
+
 export type NoiseLayer = {
   type: "noise";
   amount: number;
@@ -43,18 +67,14 @@ export type BlurLayer = {
   radius: number;
 };
 
-export type GroupLayer = {
-  type: "group";
-  children: LayerSpec[];
-};
-
 export type LayerSpec =
-  | RadialGradientLayer
+  | GradientCircleLayer
   | CircleLayer
   | RingLayer
+  | RectLayer
+  | GradientRectLayer
   | NoiseLayer
-  | BlurLayer
-  | GroupLayer;
+  | BlurLayer;
 
 export type Recipe = {
   version: 1;
@@ -96,6 +116,62 @@ export type PresetSchemaInfo = {
   description: string;
   defaultParams: Record<string, unknown>;
   schema: JsonSchemaObject;
+};
+
+export type LayerCategory = "draw" | "effect";
+
+export type LayerCatalogItem = {
+  type: LayerSpec["type"];
+  category: LayerCategory;
+  description: string;
+};
+
+export type LayerSchemaConstraint = {
+  field: string;
+  description: string;
+};
+
+export type LayerSchemaInfo = {
+  type: LayerSpec["type"];
+  category: LayerCategory;
+  description: string;
+  schema: JsonSchemaObject;
+  parameterSemantics: Record<string, string>;
+  constraints: LayerSchemaConstraint[];
+  coordinateSpace: string;
+  commonUses: string[];
+  compositionNotes: string[];
+  examples: LayerSpec[];
+};
+
+export type ListLayerTypesOutput = {
+  layers: LayerCatalogItem[];
+};
+
+export type GetLayerSchemaInput = {
+  type: LayerSpec["type"];
+};
+
+export type GetLayerSchemaOutput = LayerSchemaInfo;
+
+export type ValidateRecipeInput = {
+  recipe: unknown;
+};
+
+export type ValidationIssue = {
+  path: string;
+  message: string;
+};
+
+export type ValidateRecipeOutput = {
+  valid: boolean;
+  errors: ValidationIssue[];
+  normalizedRecipe?: Recipe;
+  stats?: {
+    totalLayers: number;
+    leafLayers: number;
+    maxDepth: number;
+  };
 };
 
 export type GenerateTextureInput =

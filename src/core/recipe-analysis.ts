@@ -31,17 +31,6 @@ export function getRecipeStats(recipe: Recipe | LayerSpec[]): RecipeStats {
     stats.totalLayers += 1;
     stats.maxDepth = Math.max(stats.maxDepth, frame.depth);
 
-    if (frame.layer.type === "group") {
-      for (let index = frame.layer.children.length - 1; index >= 0; index -= 1) {
-        stack.push({
-          layer: frame.layer.children[index],
-          depth: frame.depth + 1
-        });
-      }
-
-      continue;
-    }
-
     stats.leafLayers += 1;
   }
 

@@ -22,7 +22,6 @@ const { renderRecipe, renderRecipeToCanvas } = await import(
 );
 const {
   DEFAULT_TEXTURE_SEED,
-  MAX_RECIPE_DEPTH,
   MAX_RECIPE_LAYERS,
   MAX_TEXTURE_DIMENSION
 } = await import(pathToFileURL(path.join(projectRoot, "dist", "core", "limits.js")).href);
@@ -34,50 +33,124 @@ const {
   getPresetSchemaInfo,
   listPresetCatalog
 } = await import(pathToFileURL(path.join(projectRoot, "dist", "core", "presets.js")).href);
+const {
+  getLayerSchemaInfo,
+  listLayerCatalog
+} = await import(pathToFileURL(path.join(projectRoot, "dist", "core", "layers.js")).href);
+const { validateRecipe } = await import(
+  pathToFileURL(path.join(projectRoot, "dist", "core", "validate.js")).href
+);
 
 test("core: listPresetCatalog returns the MVP preset catalog", () => {
   const presets = listPresetCatalog();
 
   assert.deepEqual(
     presets.map((preset) => preset.name).sort(),
-    ["glow", "ring", "smoke"]
+    ["beam", "colorRamp", "glow", "panel", "ring", "smoke"]
   );
 });
 
 test("core: getPresetSchemaInfo returns serializable schema info", () => {
-  const preset = getPresetSchemaInfo("glow");
+  const preset = getPresetSchemaInfo("colorRamp");
 
   assert.ok(preset);
-  assert.equal(preset.name, "glow");
-  assert.equal(preset.defaultParams.intensity, 0.8);
+  assert.equal(preset.name, "colorRamp");
+  assert.equal(preset.defaultParams.palette, "heat");
   assert.equal(preset.schema.type, "object");
 });
 
+test("core: listLayerCatalog returns the supported layer types", () => {
+  const layers = listLayerCatalog();
+
+  assert.deepEqual(
+    layers.map((layer) => layer.type).sort(),
+    ["blur", "circle", "gradientCircle", "gradientRect", "noise", "rect", "ring"]
+  );
+});
+
+test("core: getLayerSchemaInfo returns semantic schema info", () => {
+  const layer = getLayerSchemaInfo("gradientRect");
+
+  assert.ok(layer);
+  assert.equal(layer.type, "gradientRect");
+  assert.equal(layer.category, "draw");
+  assert.equal(layer.schema.type, "object");
+  assert.equal(layer.examples.length > 0, true);
+});
+
 test("core: recipe helpers validate and normalize recipe structures", () => {
-  const recipe = createRecipe([
-    {
-      type: "group",
-      children: [
-        {
-          type: "circle",
-          center: { x: 0.5, y: 0.5 },
-          radius: 0.2,
-          color: "#ffffff"
-        },
-        {
-          type: "noise",
-          amount: 0.15
-        }
-      ]
-    }
-  ]);
+  const recipe = {
+    version: 1,
+    layers: [
+      {
+        type: "gradientCircle",
+        center: { x: 0.5, y: 0.5 },
+        radius: 0.2,
+        colors: ["rgba(255, 255, 255, 1)", "rgba(255, 255, 255, 0)"]
+      },
+      {
+        type: "noise",
+        amount: 0.15
+      }
+    ]
+  };
+  const stats = getRecipeStats(recipe);
   const normalized = normalizeRecipe(recipe);
-  const stats = getRecipeStats(normalized);
 
   assert.deepEqual(normalized, recipe);
-  assert.equal(stats.totalLayers, 3);
+  assert.equal(stats.totalLayers, 2);
   assert.equal(stats.leafLayers, 2);
-  assert.equal(stats.maxDepth, 2);
+  assert.equal(stats.maxDepth, 1);
+});
+
+test("core: createRecipe normalizes rect cornerRadius defaults", () => {
+  const recipe = createRecipe([
+    {
+      type: "rect",
+      origin: { x: 0.1, y: 0.2 },
+      size: { width: 0.4, height: 0.3 },
+      color: "#ffffff"
+    }
+  ]);
+
+  assert.equal(recipe.layers[0].cornerRadius, 0);
+});
+
+test("core: validateRecipe returns normalized recipes for valid input", () => {
+  const result = validateRecipe({
+    version: 1,
+    layers: [
+      {
+        type: "gradientCircle",
+        center: { x: 0.5, y: 0.5 },
+        radius: 0.3,
+        colors: ["#ffffff", "rgba(255,255,255,0)"]
+      }
+    ]
+  });
+
+  assert.equal(result.valid, true);
+  assert.equal(result.normalizedRecipe.layers[0].type, "gradientCircle");
+  assert.equal(result.stats.totalLayers, 1);
+});
+
+test("core: validateRecipe returns readable errors for invalid input", () => {
+  const result = validateRecipe({
+    version: 1,
+    layers: [
+      {
+        type: "ring",
+        center: { x: 0.5, y: 0.5 },
+        innerRadius: 0.4,
+        outerRadius: 0.2,
+        color: "#ffffff"
+      }
+    ]
+  });
+
+  assert.equal(result.valid, false);
+  assert.equal(result.errors.length > 0, true);
+  assert.match(result.errors[0].path, /^\$/);
 });
 
 test("core: createEmptyRecipe returns an empty valid recipe", () => {
@@ -125,19 +198,6 @@ function createCircleLayer() {
     radius: 0.2,
     color: "#ffffff"
   };
-}
-
-function createNestedGroup(depth) {
-  let layer = createCircleLayer();
-
-  for (let index = 0; index < depth - 1; index += 1) {
-    layer = {
-      type: "group",
-      children: [layer]
-    };
-  }
-
-  return layer;
 }
 
 test("core: pixel test for circle fill", () => {
@@ -196,10 +256,10 @@ test("core: pixel test for ring keeps the center transparent", () => {
   assert.equal(ringPixel.a, 255);
 });
 
-test("core: pixel test for radial gradient fades from center to edge", () => {
+test("core: pixel test for gradientCircle fades from center to edge", () => {
   const recipe = createRecipe([
     {
-      type: "radialGradient",
+      type: "gradientCircle",
       center: { x: 0.5, y: 0.5 },
       radius: 0.3,
       colors: ["rgba(255, 255, 255, 1)", "rgba(255, 255, 255, 0)"]
@@ -217,6 +277,89 @@ test("core: pixel test for radial gradient fades from center to edge", () => {
   assert.equal(centerPixel.a > edgePixel.a, true);
   assert.equal(edgePixel.a >= farPixel.a, true);
   assert.equal(centerPixel.r >= edgePixel.r, true);
+});
+
+test("core: pixel test for rounded rect keeps corners transparent", () => {
+  const recipe = createRecipe([
+    {
+      type: "rect",
+      origin: { x: 0.25, y: 0.25 },
+      size: { width: 0.5, height: 0.5 },
+      cornerRadius: 0.2,
+      color: "rgba(0, 255, 0, 1)"
+    }
+  ]);
+  const canvas = renderRecipeToCanvas(recipe, {
+    width: 64,
+    height: 64,
+    seed: 1
+  });
+
+  assert.equal(readPixel(canvas, 16, 16).a, 0);
+  assert.equal(readPixel(canvas, 32, 32).g, 255);
+});
+
+test("core: pixel test for gradientRect follows its direction", () => {
+  const recipe = createRecipe([
+    {
+      type: "gradientRect",
+      origin: { x: 0.125, y: 0.25 },
+      size: { width: 0.75, height: 0.5 },
+      direction: "horizontal",
+      colors: ["rgba(255, 0, 0, 1)", "rgba(0, 0, 255, 1)"]
+    }
+  ]);
+  const canvas = renderRecipeToCanvas(recipe, {
+    width: 64,
+    height: 64,
+    seed: 1
+  });
+  const leftPixel = readPixel(canvas, 10, 32);
+  const rightPixel = readPixel(canvas, 53, 32);
+
+  assert.equal(leftPixel.r > rightPixel.r, true);
+  assert.equal(rightPixel.b > leftPixel.b, true);
+});
+
+test("core: pixel test for vertical gradientRect follows top-to-bottom colors", () => {
+  const recipe = createRecipe([
+    {
+      type: "gradientRect",
+      origin: { x: 0.25, y: 0.125 },
+      size: { width: 0.5, height: 0.75 },
+      direction: "vertical",
+      colors: ["rgba(255, 0, 0, 1)", "rgba(0, 0, 255, 1)"]
+    }
+  ]);
+  const canvas = renderRecipeToCanvas(recipe, {
+    width: 64,
+    height: 64,
+    seed: 1
+  });
+  const topPixel = readPixel(canvas, 32, 10);
+  const bottomPixel = readPixel(canvas, 32, 53);
+
+  assert.equal(topPixel.r > bottomPixel.r, true);
+  assert.equal(bottomPixel.b > topPixel.b, true);
+});
+
+test("core: noise lifts alpha across the current canvas", () => {
+  const recipe = createRecipe([
+    {
+      type: "noise",
+      amount: 0.25
+    }
+  ]);
+  const canvas = renderRecipeToCanvas(recipe, {
+    width: 32,
+    height: 32,
+    seed: 5
+  });
+  const samplePixel = readPixel(canvas, 12, 19);
+
+  assert.equal(samplePixel.a >= Math.round(0.25 * 96), true);
+  assert.equal(samplePixel.r, samplePixel.g);
+  assert.equal(samplePixel.g, samplePixel.b);
 });
 
 test("core: renderRecipe is deterministic for the same seed", () => {
@@ -255,11 +398,85 @@ test("core: createRecipe rejects recipes with too many total layers", () => {
   );
 });
 
-test("core: createRecipe rejects recipes that exceed nesting depth", () => {
-  assert.throws(
-    () => createRecipe([createNestedGroup(MAX_RECIPE_DEPTH + 1)]),
-    /nesting depth must not exceed/i
+test("core: blur acts on the current canvas result rather than future draws", () => {
+  const blurredFirst = renderRecipeToCanvas(
+    createRecipe([
+      {
+        type: "circle",
+        center: { x: 0.5, y: 0.5 },
+        radius: 0.18,
+        color: "rgba(255, 255, 255, 1)"
+      },
+      {
+        type: "blur",
+        radius: 0.08
+      }
+    ]),
+    {
+      width: 64,
+      height: 64,
+      seed: 1
+    }
   );
+  const blurredLast = renderRecipeToCanvas(
+    createRecipe([
+      {
+        type: "blur",
+        radius: 0.08
+      },
+      {
+        type: "circle",
+        center: { x: 0.5, y: 0.5 },
+        radius: 0.18,
+        color: "rgba(255, 255, 255, 1)"
+      }
+    ]),
+    {
+      width: 64,
+      height: 64,
+      seed: 1
+    }
+  );
+
+  assert.equal(readPixel(blurredFirst, 16, 32).a > 0, true);
+  assert.equal(readPixel(blurredLast, 16, 32).a, 0);
+});
+
+test("core: blur with zero radius leaves the current canvas unchanged", () => {
+  const recipe = createRecipe([
+    {
+      type: "circle",
+      center: { x: 0.5, y: 0.5 },
+      radius: 0.22,
+      color: "rgba(255, 255, 255, 1)"
+    },
+    {
+      type: "blur",
+      radius: 0
+    }
+  ]);
+  const blurred = renderRecipe(recipe, {
+    width: 64,
+    height: 64,
+    seed: 3
+  });
+  const unblurred = renderRecipe(
+    createRecipe([
+      {
+        type: "circle",
+        center: { x: 0.5, y: 0.5 },
+        radius: 0.22,
+        color: "rgba(255, 255, 255, 1)"
+      }
+    ]),
+    {
+      width: 64,
+      height: 64,
+      seed: 3
+    }
+  );
+
+  assert.deepEqual(blurred, unblurred);
 });
 
 test("core: renderRecipe rejects oversized dimensions", () => {
@@ -367,6 +584,34 @@ test("core: exportTexture can encode jpeg output", async () => {
 
     assert.equal(imageBytes.subarray(0, 3).toString("hex"), "ffd8ff");
     assert.equal(exported.format, "jpeg");
+    assert.equal(exported.metaPath, undefined);
+  } finally {
+    await rm(workspaceRoot, { recursive: true, force: true });
+  }
+});
+
+test("core: exportTexture can encode webp output", async () => {
+  const workspaceRoot = await mkdtemp(path.join(projectRoot, ".tmp-export-webp-"));
+  const generated = generateTexture({
+    mode: "preset",
+    preset: "panel",
+    width: 64,
+    height: 40,
+    seed: 9
+  });
+
+  try {
+    const exported = await exportTexture(generated, workspaceRoot, {
+      outputPath: "result.webp",
+      format: "webp",
+      quality: 0.9
+    });
+    const imageBytes = await readFile(exported.savedPath);
+
+    assert.equal(imageBytes.subarray(0, 4).toString("ascii"), "RIFF");
+    assert.equal(imageBytes.subarray(8, 12).toString("ascii"), "WEBP");
+    assert.equal(exported.format, "webp");
+    assert.equal(exported.metaPath, undefined);
   } finally {
     await rm(workspaceRoot, { recursive: true, force: true });
   }

@@ -144,8 +144,11 @@ test("mcp integration: initialize and list tools", async () => {
     assert.deepEqual(toolNames, [
       "export_texture",
       "generate_texture",
+      "get_layer_schema",
       "get_preset_schema",
-      "list_presets"
+      "list_layer_types",
+      "list_presets",
+      "validate_recipe"
     ]);
   } finally {
     await session.close();
@@ -162,22 +165,62 @@ test("mcp integration: placeholder info tools return structured results", async 
     });
 
     assert.notEqual(presetsResult.isError, true, session.getStderr());
-    assert.equal(presetsResult.structuredContent.presets.length, 3);
+    assert.equal(presetsResult.structuredContent.presets.length, 6);
     assert.deepEqual(
       presetsResult.structuredContent.presets.map((preset) => preset.name).sort(),
-      ["glow", "ring", "smoke"]
+      ["beam", "colorRamp", "glow", "panel", "ring", "smoke"]
     );
 
     const schemaResult = await session.request("tools/call", {
       name: "get_preset_schema",
       arguments: {
-        preset: "glow"
+        preset: "colorRamp"
       }
     });
 
     assert.notEqual(schemaResult.isError, true, session.getStderr());
-    assert.equal(schemaResult.structuredContent.name, "glow");
-    assert.equal(schemaResult.structuredContent.defaultParams.intensity, 0.8);
+    assert.equal(schemaResult.structuredContent.name, "colorRamp");
+    assert.equal(schemaResult.structuredContent.defaultParams.palette, "heat");
+
+    const layerTypesResult = await session.request("tools/call", {
+      name: "list_layer_types",
+      arguments: {}
+    });
+
+    assert.notEqual(layerTypesResult.isError, true, session.getStderr());
+    assert.equal(layerTypesResult.structuredContent.layers.length, 7);
+
+    const layerSchemaResult = await session.request("tools/call", {
+      name: "get_layer_schema",
+      arguments: {
+        type: "gradientRect"
+      }
+    });
+
+    assert.notEqual(layerSchemaResult.isError, true, session.getStderr());
+    assert.equal(layerSchemaResult.structuredContent.type, "gradientRect");
+    assert.equal(layerSchemaResult.structuredContent.category, "draw");
+
+    const validateResult = await session.request("tools/call", {
+      name: "validate_recipe",
+      arguments: {
+        recipe: {
+          version: 1,
+          layers: [
+            {
+              type: "gradientCircle",
+              center: { x: 0.5, y: 0.5 },
+              radius: 0.25,
+              colors: ["#ffffff", "rgba(255,255,255,0)"]
+            }
+          ]
+        }
+      }
+    });
+
+    assert.notEqual(validateResult.isError, true, session.getStderr());
+    assert.equal(validateResult.structuredContent.valid, true);
+    assert.equal(validateResult.structuredContent.normalizedRecipe.layers[0].type, "gradientCircle");
   } finally {
     await session.close();
   }
@@ -220,6 +263,28 @@ test("mcp integration: invalid calls return tool errors", async () => {
 
     assert.equal(oversizedGenerateResult.isError, true, session.getStderr());
     assert.match(oversizedGenerateResult.content[0].text, /4096/);
+
+    const invalidRecipeResult = await session.request("tools/call", {
+      name: "validate_recipe",
+      arguments: {
+        recipe: {
+          version: 1,
+          layers: [
+            {
+              type: "ring",
+              center: { x: 0.5, y: 0.5 },
+              innerRadius: 0.5,
+              outerRadius: 0.2,
+              color: "#ffffff"
+            }
+          ]
+        }
+      }
+    });
+
+    assert.equal(invalidRecipeResult.isError, undefined, session.getStderr());
+    assert.equal(invalidRecipeResult.structuredContent.valid, false);
+    assert.equal(invalidRecipeResult.structuredContent.errors.length > 0, true);
   } finally {
     await session.close();
   }

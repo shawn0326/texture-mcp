@@ -1,13 +1,16 @@
 import { Canvas, type SKRSContext2D, createCanvas } from "@napi-rs/canvas";
-import { renderOptionsSchema, recipeSchema } from "./schema.js";
+import { DEFAULT_TEXTURE_SEED } from "./limits.js";
+import { normalizeRecipe } from "./recipe.js";
+import { renderOptionsSchema } from "./schema.js";
 import type {
   BlurLayer,
   CircleLayer,
-  GroupLayer,
+  GradientCircleLayer,
+  GradientRectLayer,
   ImageFormat,
   LayerSpec,
   NoiseLayer,
-  RadialGradientLayer,
+  RectLayer,
   Recipe,
   RenderOptions,
   RingLayer
@@ -45,9 +48,51 @@ function createSeededRandom(seed: number): RandomSource {
   };
 }
 
-function applyRadialGradient(
+function createRectPath(
   context: SKRSContext2D,
-  layer: RadialGradientLayer,
+  layer: RectLayer | GradientRectLayer,
+  width: number,
+  height: number
+): {
+  x: number;
+  y: number;
+  rectWidth: number;
+  rectHeight: number;
+} {
+  const x = toCanvasPoint(layer.origin.x, width);
+  const y = toCanvasPoint(layer.origin.y, height);
+  const rectWidth = toCanvasPoint(layer.size.width, width);
+  const rectHeight = toCanvasPoint(layer.size.height, height);
+  const radius = Math.min(
+    toCanvasRadius(layer.cornerRadius ?? 0, rectWidth, rectHeight),
+    rectWidth / 2,
+    rectHeight / 2
+  );
+
+  context.beginPath();
+
+  if (radius <= 0) {
+    context.rect(x, y, rectWidth, rectHeight);
+    return { x, y, rectWidth, rectHeight };
+  }
+
+  context.moveTo(x + radius, y);
+  context.lineTo(x + rectWidth - radius, y);
+  context.arcTo(x + rectWidth, y, x + rectWidth, y + radius, radius);
+  context.lineTo(x + rectWidth, y + rectHeight - radius);
+  context.arcTo(x + rectWidth, y + rectHeight, x + rectWidth - radius, y + rectHeight, radius);
+  context.lineTo(x + radius, y + rectHeight);
+  context.arcTo(x, y + rectHeight, x, y + rectHeight - radius, radius);
+  context.lineTo(x, y + radius);
+  context.arcTo(x, y, x + radius, y, radius);
+  context.closePath();
+
+  return { x, y, rectWidth, rectHeight };
+}
+
+function applyGradientCircle(
+  context: SKRSContext2D,
+  layer: GradientCircleLayer,
   width: number,
   height: number
 ): void {
@@ -62,8 +107,11 @@ function applyRadialGradient(
   });
 
   context.save();
+  context.beginPath();
+  context.arc(centerX, centerY, radius, 0, TAU);
+  context.clip();
   context.fillStyle = gradient;
-  context.fillRect(0, 0, width, height);
+  context.fillRect(centerX - radius, centerY - radius, radius * 2, radius * 2);
   context.restore();
 }
 
@@ -104,6 +152,42 @@ function applyRing(
   context.moveTo(centerX + innerRadius, centerY);
   context.arc(centerX, centerY, innerRadius, 0, TAU);
   context.fill("evenodd");
+  context.restore();
+}
+
+function applyRect(
+  context: SKRSContext2D,
+  layer: RectLayer,
+  width: number,
+  height: number
+): void {
+  context.save();
+  createRectPath(context, layer, width, height);
+  context.fillStyle = layer.color;
+  context.fill();
+  context.restore();
+}
+
+function applyGradientRect(
+  context: SKRSContext2D,
+  layer: GradientRectLayer,
+  width: number,
+  height: number
+): void {
+  context.save();
+  const { x, y, rectWidth, rectHeight } = createRectPath(context, layer, width, height);
+  const gradient =
+    layer.direction === "horizontal"
+      ? context.createLinearGradient(x, y, x + rectWidth, y)
+      : context.createLinearGradient(x, y, x, y + rectHeight);
+
+  layer.colors.forEach((color, index) => {
+    const stop = layer.colors.length === 1 ? 1 : index / (layer.colors.length - 1);
+    gradient.addColorStop(stop, color);
+  });
+
+  context.fillStyle = gradient;
+  context.fill();
   context.restore();
 }
 
@@ -153,18 +237,6 @@ function applyBlur(
   context.restore();
 }
 
-function applyGroup(
-  context: SKRSContext2D,
-  layer: GroupLayer,
-  width: number,
-  height: number,
-  random: RandomSource
-): void {
-  for (const child of layer.children) {
-    applyLayer(context, child, width, height, random);
-  }
-}
-
 function applyLayer(
   context: SKRSContext2D,
   layer: LayerSpec,
@@ -173,8 +245,8 @@ function applyLayer(
   random: RandomSource
 ): void {
   switch (layer.type) {
-    case "radialGradient":
-      applyRadialGradient(context, layer, width, height);
+    case "gradientCircle":
+      applyGradientCircle(context, layer, width, height);
       return;
     case "circle":
       applyCircle(context, layer, width, height);
@@ -182,14 +254,17 @@ function applyLayer(
     case "ring":
       applyRing(context, layer, width, height);
       return;
+    case "rect":
+      applyRect(context, layer, width, height);
+      return;
+    case "gradientRect":
+      applyGradientRect(context, layer, width, height);
+      return;
     case "noise":
       applyNoise(context, layer, width, height, random);
       return;
     case "blur":
       applyBlur(context, layer, width, height);
-      return;
-    case "group":
-      applyGroup(context, layer, width, height, random);
       return;
     default: {
       const exhaustiveLayer: never = layer;
@@ -216,9 +291,9 @@ export function renderRecipeToCanvas(
   recipe: Recipe,
   renderOptions: RenderOptions
 ): Canvas {
-  const normalizedRecipe = recipeSchema.parse(recipe) as Recipe;
+  const normalizedRecipe = normalizeRecipe(recipe);
   const normalizedRenderOptions = renderOptionsSchema.parse(renderOptions) as RenderOptions;
-  const seed = normalizedRenderOptions.seed ?? 0;
+  const seed = normalizedRenderOptions.seed ?? DEFAULT_TEXTURE_SEED;
   const random = createSeededRandom(seed);
   const canvas = createCanvas(normalizedRenderOptions.width, normalizedRenderOptions.height);
   const context = canvas.getContext("2d", {

@@ -13,6 +13,13 @@ export const paramsRecordSchema = z.record(z.string(), z.unknown());
 export const jsonSchemaObjectSchema = z.record(z.string(), z.unknown());
 export const normalizedNumberSchema = z.number().min(0).max(1);
 export const cssColorSchema = z.string().min(1);
+export const size2DSchema = z
+  .object({
+    width: normalizedNumberSchema,
+    height: normalizedNumberSchema
+  })
+  .strict();
+export const cornerRadiusSchema = z.number().min(0).max(0.5);
 const textureDimensionSchema = z
   .number()
   .int()
@@ -71,16 +78,16 @@ export const xySchema = z
   })
   .strict();
 
-const radialGradientLayerSchema = z
+export const gradientCircleLayerSchema = z
   .object({
-    type: z.literal("radialGradient"),
+    type: z.literal("gradientCircle"),
     center: xySchema,
     radius: normalizedNumberSchema,
     colors: z.array(cssColorSchema).min(2)
   })
   .strict();
 
-const circleLayerSchema = z
+export const circleLayerSchema = z
   .object({
     type: z.literal("circle"),
     center: xySchema,
@@ -89,7 +96,7 @@ const circleLayerSchema = z
   })
   .strict();
 
-const ringLayerSchema = z
+export const ringLayerSchema = z
   .object({
     type: z.literal("ring"),
     center: xySchema,
@@ -103,14 +110,35 @@ const ringLayerSchema = z
     path: ["outerRadius"]
   });
 
-const noiseLayerSchema = z
+export const rectLayerSchema = z
+  .object({
+    type: z.literal("rect"),
+    origin: xySchema,
+    size: size2DSchema,
+    cornerRadius: cornerRadiusSchema.optional(),
+    color: cssColorSchema
+  })
+  .strict();
+
+export const gradientRectLayerSchema = z
+  .object({
+    type: z.literal("gradientRect"),
+    origin: xySchema,
+    size: size2DSchema,
+    cornerRadius: cornerRadiusSchema.optional(),
+    direction: z.enum(["horizontal", "vertical"]),
+    colors: z.array(cssColorSchema).min(2)
+  })
+  .strict();
+
+export const noiseLayerSchema = z
   .object({
     type: z.literal("noise"),
     amount: normalizedNumberSchema
   })
   .strict();
 
-const blurLayerSchema = z
+export const blurLayerSchema = z
   .object({
     type: z.literal("blur"),
     radius: normalizedNumberSchema
@@ -119,17 +147,13 @@ const blurLayerSchema = z
 
 export const layerSpecSchema: z.ZodTypeAny = z.lazy(() =>
   z.union([
-    radialGradientLayerSchema,
+    gradientCircleLayerSchema,
     circleLayerSchema,
     ringLayerSchema,
+    rectLayerSchema,
+    gradientRectLayerSchema,
     noiseLayerSchema,
-    blurLayerSchema,
-    z
-      .object({
-        type: z.literal("group"),
-        children: z.array(layerSpecSchema).min(1)
-      })
-      .strict()
+    blurLayerSchema
   ])
 );
 
@@ -232,10 +256,25 @@ export const presetCatalogItemSchema = z
   .strict();
 
 export const listPresetsInputSchema = z.object({}).strict();
+export const listLayerTypesInputSchema = z.object({}).strict();
 
 export const listPresetsOutputSchema = z
   .object({
     presets: z.array(presetCatalogItemSchema)
+  })
+  .strict();
+
+export const layerCatalogItemSchema = z
+  .object({
+    type: z.enum(["gradientCircle", "circle", "ring", "rect", "gradientRect", "noise", "blur"]),
+    category: z.enum(["draw", "effect"]),
+    description: z.string().min(1)
+  })
+  .strict();
+
+export const listLayerTypesOutputSchema = z
+  .object({
+    layers: z.array(layerCatalogItemSchema)
   })
   .strict();
 
@@ -245,11 +284,68 @@ export const getPresetSchemaInputSchema = z
   })
   .strict();
 
+export const getLayerSchemaInputSchema = z
+  .object({
+    type: z.enum(["gradientCircle", "circle", "ring", "rect", "gradientRect", "noise", "blur"])
+  })
+  .strict();
+
 export const getPresetSchemaOutputSchema = z
   .object({
     name: z.string().min(1),
     description: z.string().min(1),
     defaultParams: paramsRecordSchema,
     schema: jsonSchemaObjectSchema
+  })
+  .strict();
+
+export const layerSchemaConstraintSchema = z
+  .object({
+    field: z.string().min(1),
+    description: z.string().min(1)
+  })
+  .strict();
+
+export const getLayerSchemaOutputSchema = z
+  .object({
+    type: z.enum(["gradientCircle", "circle", "ring", "rect", "gradientRect", "noise", "blur"]),
+    category: z.enum(["draw", "effect"]),
+    description: z.string().min(1),
+    schema: jsonSchemaObjectSchema,
+    parameterSemantics: z.record(z.string(), z.string()),
+    constraints: z.array(layerSchemaConstraintSchema),
+    coordinateSpace: z.string().min(1),
+    commonUses: z.array(z.string().min(1)),
+    compositionNotes: z.array(z.string().min(1)),
+    examples: z.array(layerSpecSchema)
+  })
+  .strict();
+
+export const validateRecipeInputSchema = z
+  .object({
+    recipe: z.unknown()
+  })
+  .strict();
+
+export const validationIssueSchema = z
+  .object({
+    path: z.string(),
+    message: z.string().min(1)
+  })
+  .strict();
+
+export const validateRecipeOutputSchema = z
+  .object({
+    valid: z.boolean(),
+    errors: z.array(validationIssueSchema),
+    normalizedRecipe: recipeSchema.optional(),
+    stats: z
+      .object({
+        totalLayers: z.number().int().nonnegative(),
+        leafLayers: z.number().int().nonnegative(),
+        maxDepth: z.number().int().nonnegative()
+      })
+      .strict()
+      .optional()
   })
   .strict();
