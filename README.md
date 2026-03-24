@@ -52,13 +52,49 @@ Notes:
 
 ## Quick Start
 
-Use the published npm package directly:
+### VS Code Copilot
 
-```bash
-codex mcp add texture -- npx -y texture-mcp
+Add the following to your `.vscode/mcp.json` (create it if it doesn't exist):
+
+```json
+{
+  "servers": {
+    "texture-mcp": {
+      "command": "npx",
+      "args": ["-y", "texture-mcp"]
+    }
+  }
+}
 ```
 
-Once added, the simplest user flow is:
+Alternatively, add it to your User Settings (`settings.json`):
+
+```json
+{
+  "mcp": {
+    "servers": {
+      "texture-mcp": {
+        "command": "npx",
+        "args": ["-y", "texture-mcp"]
+      }
+    }
+  }
+}
+```
+
+### Other Clients
+
+Other MCP clients (Claude Desktop, Cursor, Windsurf, etc.) should configure the server according to their own MCP integration conventions. The server command is:
+
+```
+npx -y texture-mcp
+```
+
+The transport is **stdio**.
+
+### Usage Flow
+
+Once connected, the simplest user flow is:
 
 1. Ask the client to list presets or layer types.
 2. Inspect one preset or layer schema.
