@@ -11,6 +11,8 @@ import type {
   RectLayer,
   Recipe,
   RingLayer
+  ,
+  TextLayer
 } from "./types.js";
 
 export type { RecipeStats } from "./recipe-analysis.js";
@@ -22,13 +24,35 @@ function normalizeCornerRadius<T extends RectLayer | GradientRectLayer>(layer: T
   };
 }
 
+function normalizeTextLayer(layer: TextLayer): LayerSpec {
+  return {
+    ...layer,
+    fontFamily: layer.fontFamily ?? "sans-serif",
+    fontWeight: layer.fontWeight ?? "normal",
+    fontStyle: layer.fontStyle ?? "normal",
+    align: layer.align ?? "center",
+    verticalAlign: layer.verticalAlign ?? "middle",
+    clip: layer.clip ?? true
+  };
+}
+
 function normalizeLeafLayer(
-  layer: CircleLayer | RingLayer | RectLayer | GradientRectLayer | GradientCircleLayer | NoiseLayer | BlurLayer
+  layer:
+    | CircleLayer
+    | RingLayer
+    | RectLayer
+    | GradientRectLayer
+    | GradientCircleLayer
+    | NoiseLayer
+    | BlurLayer
+    | TextLayer
 ): LayerSpec {
   switch (layer.type) {
     case "rect":
     case "gradientRect":
       return normalizeCornerRadius(layer);
+    case "text":
+      return normalizeTextLayer(layer);
     default:
       return layer;
   }

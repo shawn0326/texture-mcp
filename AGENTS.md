@@ -12,6 +12,7 @@
   - `ring`
   - `rect`
   - `gradientRect`
+  - `text`
   - `noise`
   - `blur`
 - 当前已实现的内置 presets：

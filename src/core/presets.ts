@@ -290,6 +290,26 @@ function toSerializableSchema(schema: z.ZodTypeAny): JsonSchemaObject {
   return z.toJSONSchema(schema) as JsonSchemaObject;
 }
 
+function getObjectSchemaPropertyNames(schema: JsonSchemaObject): string[] {
+  const properties = schema.properties;
+
+  if (!properties || typeof properties !== "object" || Array.isArray(properties)) {
+    return [];
+  }
+
+  return Object.keys(properties as Record<string, unknown>);
+}
+
+function getObjectSchemaRequiredNames(schema: JsonSchemaObject): string[] {
+  const required = schema.required;
+
+  if (!Array.isArray(required)) {
+    return [];
+  }
+
+  return required.filter((value): value is string => typeof value === "string");
+}
+
 export function listPresetCatalog(): PresetCatalogItem[] {
   return presetDefinitions.map(({ name, description }) => ({
     name,
@@ -308,10 +328,20 @@ export function getPresetSchemaInfo(name: string): PresetSchemaInfo | undefined 
     return undefined;
   }
 
+  const schema = toSerializableSchema(preset.schema);
+  const paramNames = getObjectSchemaPropertyNames(schema);
+  const requiredParamNames = getObjectSchemaRequiredNames(schema);
+  const defaultParamNames = Object.keys(preset.defaultParams);
+
   return {
     name: preset.name,
     description: preset.description,
+    mode: "preset",
+    paramCount: paramNames.length,
+    paramNames,
+    requiredParamNames,
+    defaultParamNames,
     defaultParams: preset.defaultParams,
-    schema: toSerializableSchema(preset.schema)
+    schema
   };
 }

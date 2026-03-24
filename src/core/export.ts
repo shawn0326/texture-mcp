@@ -169,6 +169,10 @@ export async function exportTexture(
     width: source.meta.width,
     height: source.meta.height,
     format: parsedInput.format,
+    sourceMode: source.meta.preset ? "preset" : "recipe",
+    preset: source.meta.preset,
+    seed: source.meta.seed,
+    metaSaved: Boolean(metaPath),
     message: `Texture exported to ${savedPath}.`
   };
 }

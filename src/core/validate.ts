@@ -34,6 +34,8 @@ export function validateRecipe(input: unknown): ValidateRecipeOutput {
 
     return {
       valid: true,
+      errorCount: 0,
+      readyForGeneration: true,
       errors: [],
       normalizedRecipe,
       stats: getRecipeStats(normalizedRecipe)
@@ -42,12 +44,16 @@ export function validateRecipe(input: unknown): ValidateRecipeOutput {
     if (error instanceof ZodError) {
       return {
         valid: false,
+        errorCount: error.issues.length,
+        readyForGeneration: false,
         errors: toValidationIssues(error)
       };
     }
 
     return {
       valid: false,
+      errorCount: 1,
+      readyForGeneration: false,
       errors: [
         {
           path: "$",

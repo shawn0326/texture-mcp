@@ -67,6 +67,29 @@ export type BlurLayer = {
   radius: number;
 };
 
+export type TextAlign = "left" | "center" | "right";
+
+export type TextVerticalAlign = "top" | "middle" | "bottom";
+
+export type TextFontWeight = "normal" | "bold";
+
+export type TextFontStyle = "normal" | "italic";
+
+export type TextLayer = {
+  type: "text";
+  text: string;
+  origin: XY;
+  size: Size2D;
+  color: string;
+  fontFamily?: string;
+  fontSize?: number;
+  fontWeight?: TextFontWeight;
+  fontStyle?: TextFontStyle;
+  align?: TextAlign;
+  verticalAlign?: TextVerticalAlign;
+  clip?: boolean;
+};
+
 export type LayerSpec =
   | GradientCircleLayer
   | CircleLayer
@@ -74,7 +97,8 @@ export type LayerSpec =
   | RectLayer
   | GradientRectLayer
   | NoiseLayer
-  | BlurLayer;
+  | BlurLayer
+  | TextLayer;
 
 export type Recipe = {
   version: 1;
@@ -114,6 +138,11 @@ export type PresetCatalogItem = {
 export type PresetSchemaInfo = {
   name: string;
   description: string;
+  mode: "preset";
+  paramCount: number;
+  paramNames: string[];
+  requiredParamNames: string[];
+  defaultParamNames: string[];
   defaultParams: Record<string, unknown>;
   schema: JsonSchemaObject;
 };
@@ -135,6 +164,11 @@ export type LayerSchemaInfo = {
   type: LayerSpec["type"];
   category: LayerCategory;
   description: string;
+  mode: "recipe";
+  parameterNames: string[];
+  requiredParameterNames: string[];
+  constraintFields: string[];
+  exampleCount: number;
   schema: JsonSchemaObject;
   parameterSemantics: Record<string, string>;
   constraints: LayerSchemaConstraint[];
@@ -145,6 +179,7 @@ export type LayerSchemaInfo = {
 };
 
 export type ListLayerTypesOutput = {
+  count: number;
   layers: LayerCatalogItem[];
 };
 
@@ -165,6 +200,8 @@ export type ValidationIssue = {
 
 export type ValidateRecipeOutput = {
   valid: boolean;
+  errorCount: number;
+  readyForGeneration: boolean;
   errors: ValidationIssue[];
   normalizedRecipe?: Recipe;
   stats?: {
@@ -192,10 +229,14 @@ export type GenerateTextureInput =
     };
 
 export type GenerateTextureOutput = {
+  mode: "preset" | "recipe";
   width: number;
   height: number;
   preset?: string;
   seed: number;
+  usedDefaultSeed: boolean;
+  recipeLayerCount: number;
+  currentResultAvailable: true;
   message: string;
 };
 
@@ -212,10 +253,15 @@ export type ExportTextureOutput = {
   width: number;
   height: number;
   format: ImageFormat;
+  sourceMode: "preset" | "recipe";
+  preset?: string;
+  seed: number;
+  metaSaved: boolean;
   message: string;
 };
 
 export type ListPresetsOutput = {
+  count: number;
   presets: PresetCatalogItem[];
 };
 

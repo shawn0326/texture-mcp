@@ -145,6 +145,23 @@ export const blurLayerSchema = z
   })
   .strict();
 
+export const textLayerSchema = z
+  .object({
+    type: z.literal("text"),
+    text: z.string().min(1).max(256),
+    origin: xySchema,
+    size: size2DSchema,
+    color: cssColorSchema,
+    fontFamily: z.string().min(1).max(128).optional(),
+    fontSize: z.number().positive().max(1).optional(),
+    fontWeight: z.enum(["normal", "bold"]).optional(),
+    fontStyle: z.enum(["normal", "italic"]).optional(),
+    align: z.enum(["left", "center", "right"]).optional(),
+    verticalAlign: z.enum(["top", "middle", "bottom"]).optional(),
+    clip: z.boolean().optional()
+  })
+  .strict();
+
 export const layerSpecSchema: z.ZodTypeAny = z.lazy(() =>
   z.union([
     gradientCircleLayerSchema,
@@ -153,7 +170,8 @@ export const layerSpecSchema: z.ZodTypeAny = z.lazy(() =>
     rectLayerSchema,
     gradientRectLayerSchema,
     noiseLayerSchema,
-    blurLayerSchema
+    blurLayerSchema,
+    textLayerSchema
   ])
 );
 
@@ -220,10 +238,14 @@ export const generateTextureInputSchema = z
 
 export const generateTextureOutputSchema = z
   .object({
+    mode: z.enum(["preset", "recipe"]),
     width: z.number().int().positive(),
     height: z.number().int().positive(),
     preset: z.string().optional(),
     seed: z.number().int().nonnegative(),
+    usedDefaultSeed: z.boolean(),
+    recipeLayerCount: z.number().int().nonnegative(),
+    currentResultAvailable: z.literal(true),
     message: z.string()
   })
   .strict();
@@ -244,6 +266,10 @@ export const exportTextureOutputSchema = z
     width: z.number().int().positive(),
     height: z.number().int().positive(),
     format: imageFormatSchema,
+    sourceMode: z.enum(["preset", "recipe"]),
+    preset: z.string().optional(),
+    seed: z.number().int().nonnegative(),
+    metaSaved: z.boolean(),
     message: z.string()
   })
   .strict();
@@ -260,13 +286,14 @@ export const listLayerTypesInputSchema = z.object({}).strict();
 
 export const listPresetsOutputSchema = z
   .object({
+    count: z.number().int().nonnegative(),
     presets: z.array(presetCatalogItemSchema)
   })
   .strict();
 
 export const layerCatalogItemSchema = z
   .object({
-    type: z.enum(["gradientCircle", "circle", "ring", "rect", "gradientRect", "noise", "blur"]),
+    type: z.enum(["gradientCircle", "circle", "ring", "rect", "gradientRect", "noise", "blur", "text"]),
     category: z.enum(["draw", "effect"]),
     description: z.string().min(1)
   })
@@ -274,6 +301,7 @@ export const layerCatalogItemSchema = z
 
 export const listLayerTypesOutputSchema = z
   .object({
+    count: z.number().int().nonnegative(),
     layers: z.array(layerCatalogItemSchema)
   })
   .strict();
@@ -286,7 +314,7 @@ export const getPresetSchemaInputSchema = z
 
 export const getLayerSchemaInputSchema = z
   .object({
-    type: z.enum(["gradientCircle", "circle", "ring", "rect", "gradientRect", "noise", "blur"])
+    type: z.enum(["gradientCircle", "circle", "ring", "rect", "gradientRect", "noise", "blur", "text"])
   })
   .strict();
 
@@ -294,6 +322,11 @@ export const getPresetSchemaOutputSchema = z
   .object({
     name: z.string().min(1),
     description: z.string().min(1),
+    mode: z.literal("preset"),
+    paramCount: z.number().int().nonnegative(),
+    paramNames: z.array(z.string().min(1)),
+    requiredParamNames: z.array(z.string().min(1)),
+    defaultParamNames: z.array(z.string().min(1)),
     defaultParams: paramsRecordSchema,
     schema: jsonSchemaObjectSchema
   })
@@ -308,9 +341,14 @@ export const layerSchemaConstraintSchema = z
 
 export const getLayerSchemaOutputSchema = z
   .object({
-    type: z.enum(["gradientCircle", "circle", "ring", "rect", "gradientRect", "noise", "blur"]),
+    type: z.enum(["gradientCircle", "circle", "ring", "rect", "gradientRect", "noise", "blur", "text"]),
     category: z.enum(["draw", "effect"]),
     description: z.string().min(1),
+    mode: z.literal("recipe"),
+    parameterNames: z.array(z.string().min(1)),
+    requiredParameterNames: z.array(z.string().min(1)),
+    constraintFields: z.array(z.string().min(1)),
+    exampleCount: z.number().int().nonnegative(),
     schema: jsonSchemaObjectSchema,
     parameterSemantics: z.record(z.string(), z.string()),
     constraints: z.array(layerSchemaConstraintSchema),
@@ -337,6 +375,8 @@ export const validationIssueSchema = z
 export const validateRecipeOutputSchema = z
   .object({
     valid: z.boolean(),
+    errorCount: z.number().int().nonnegative(),
+    readyForGeneration: z.boolean(),
     errors: z.array(validationIssueSchema),
     normalizedRecipe: recipeSchema.optional(),
     stats: z

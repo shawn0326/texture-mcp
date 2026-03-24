@@ -13,7 +13,8 @@ import type {
   RectLayer,
   Recipe,
   RenderOptions,
-  RingLayer
+  RingLayer,
+  TextLayer
 } from "./types.js";
 
 const TAU = Math.PI * 2;
@@ -191,6 +192,57 @@ function applyGradientRect(
   context.restore();
 }
 
+function applyText(
+  context: SKRSContext2D,
+  layer: TextLayer,
+  width: number,
+  height: number
+): void {
+  const boxX = toCanvasPoint(layer.origin.x, width);
+  const boxY = toCanvasPoint(layer.origin.y, height);
+  const boxWidth = toCanvasPoint(layer.size.width, width);
+  const boxHeight = toCanvasPoint(layer.size.height, height);
+  const fontSize = Math.max(1, toCanvasPoint(layer.fontSize ?? layer.size.height * 0.8, height));
+  const align = layer.align ?? "center";
+  const verticalAlign = layer.verticalAlign ?? "middle";
+  const fontStyle = layer.fontStyle ?? "normal";
+  const fontWeight = layer.fontWeight ?? "normal";
+  const fontFamily = layer.fontFamily ?? "sans-serif";
+
+  context.save();
+
+  if (layer.clip) {
+    context.beginPath();
+    context.rect(boxX, boxY, boxWidth, boxHeight);
+    context.clip();
+  }
+
+  context.fillStyle = layer.color;
+  context.textAlign = align;
+  context.textBaseline = "alphabetic";
+  context.font = `${fontStyle} ${fontWeight} ${fontSize.toFixed(2)}px ${fontFamily}`;
+
+  const metrics = context.measureText(layer.text);
+  const ascent = metrics.actualBoundingBoxAscent || fontSize * 0.8;
+  const descent = metrics.actualBoundingBoxDescent || fontSize * 0.2;
+
+  const textX =
+    align === "left"
+      ? boxX
+      : align === "right"
+        ? boxX + boxWidth
+        : boxX + boxWidth / 2;
+  const baselineY =
+    verticalAlign === "top"
+      ? boxY + ascent
+      : verticalAlign === "bottom"
+        ? boxY + boxHeight - descent
+        : boxY + boxHeight / 2 + (ascent - descent) / 2;
+
+  context.fillText(layer.text, textX, baselineY);
+  context.restore();
+}
+
 function applyNoise(
   context: SKRSContext2D,
   layer: NoiseLayer,
@@ -259,6 +311,9 @@ function applyLayer(
       return;
     case "gradientRect":
       applyGradientRect(context, layer, width, height);
+      return;
+    case "text":
+      applyText(context, layer, width, height);
       return;
     case "noise":
       applyNoise(context, layer, width, height, random);

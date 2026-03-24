@@ -57,6 +57,7 @@ function resolveRecipe(input: GenerateTextureInput): {
 
 export function generateTexture(input: GenerateTextureInput): GeneratedTexture {
   const parsedInput = generateTextureInputSchema.parse(input) as GenerateTextureInput;
+  const usedDefaultSeed = typeof parsedInput.seed !== "number";
   const resolvedSeed = resolveSeed(parsedInput.seed);
   const { recipe, presetName, resolvedParams } = resolveRecipe(parsedInput);
 
@@ -79,10 +80,14 @@ export function generateTexture(input: GenerateTextureInput): GeneratedTexture {
     }),
     meta,
     output: {
+      mode: parsedInput.mode,
       width: parsedInput.width,
       height: parsedInput.height,
       preset: presetName,
       seed: resolvedSeed,
+      usedDefaultSeed,
+      recipeLayerCount: recipe.layers.length,
+      currentResultAvailable: true,
       message: "Texture rendered and stored as the current result."
     }
   };

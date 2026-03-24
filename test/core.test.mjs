@@ -55,6 +55,29 @@ test("core: getPresetSchemaInfo returns serializable schema info", () => {
 
   assert.ok(preset);
   assert.equal(preset.name, "colorRamp");
+  assert.equal(preset.mode, "preset");
+  assert.equal(preset.paramCount, 5);
+  assert.deepEqual(preset.paramNames, [
+    "palette",
+    "orientation",
+    "thickness",
+    "padding",
+    "cornerRadius"
+  ]);
+  assert.deepEqual(preset.requiredParamNames, [
+    "palette",
+    "orientation",
+    "thickness",
+    "padding",
+    "cornerRadius"
+  ]);
+  assert.deepEqual(preset.defaultParamNames, [
+    "palette",
+    "orientation",
+    "thickness",
+    "padding",
+    "cornerRadius"
+  ]);
   assert.equal(preset.defaultParams.palette, "heat");
   assert.equal(preset.schema.type, "object");
 });
@@ -64,7 +87,7 @@ test("core: listLayerCatalog returns the supported layer types", () => {
 
   assert.deepEqual(
     layers.map((layer) => layer.type).sort(),
-    ["blur", "circle", "gradientCircle", "gradientRect", "noise", "rect", "ring"]
+    ["blur", "circle", "gradientCircle", "gradientRect", "noise", "rect", "ring", "text"]
   );
 });
 
@@ -74,6 +97,22 @@ test("core: getLayerSchemaInfo returns semantic schema info", () => {
   assert.ok(layer);
   assert.equal(layer.type, "gradientRect");
   assert.equal(layer.category, "draw");
+  assert.equal(layer.mode, "recipe");
+  assert.deepEqual(layer.parameterNames, [
+    "origin",
+    "size",
+    "cornerRadius",
+    "direction",
+    "colors"
+  ]);
+  assert.deepEqual(layer.requiredParameterNames, [
+    "origin",
+    "size",
+    "direction",
+    "colors"
+  ]);
+  assert.deepEqual(layer.constraintFields, ["direction", "colors"]);
+  assert.equal(layer.exampleCount, 1);
   assert.equal(layer.schema.type, "object");
   assert.equal(layer.examples.length > 0, true);
 });
@@ -116,6 +155,27 @@ test("core: createRecipe normalizes rect cornerRadius defaults", () => {
   assert.equal(recipe.layers[0].cornerRadius, 0);
 });
 
+test("core: createRecipe normalizes text layout defaults", () => {
+  const recipe = createRecipe([
+    {
+      type: "text",
+      text: "HUD",
+      origin: { x: 0.1, y: 0.2 },
+      size: { width: 0.4, height: 0.2 },
+      color: "#ffffff"
+    }
+  ]);
+  const textLayer = recipe.layers[0];
+
+  assert.equal(textLayer.type, "text");
+  assert.equal(textLayer.fontFamily, "sans-serif");
+  assert.equal(textLayer.fontWeight, "normal");
+  assert.equal(textLayer.fontStyle, "normal");
+  assert.equal(textLayer.align, "center");
+  assert.equal(textLayer.verticalAlign, "middle");
+  assert.equal(textLayer.clip, true);
+});
+
 test("core: validateRecipe returns normalized recipes for valid input", () => {
   const result = validateRecipe({
     version: 1,
@@ -130,6 +190,8 @@ test("core: validateRecipe returns normalized recipes for valid input", () => {
   });
 
   assert.equal(result.valid, true);
+  assert.equal(result.errorCount, 0);
+  assert.equal(result.readyForGeneration, true);
   assert.equal(result.normalizedRecipe.layers[0].type, "gradientCircle");
   assert.equal(result.stats.totalLayers, 1);
 });
@@ -149,6 +211,8 @@ test("core: validateRecipe returns readable errors for invalid input", () => {
   });
 
   assert.equal(result.valid, false);
+  assert.equal(result.errorCount > 0, true);
+  assert.equal(result.readyForGeneration, false);
   assert.equal(result.errors.length > 0, true);
   assert.match(result.errors[0].path, /^\$/);
 });
@@ -189,6 +253,20 @@ function readPixel(canvas, x, y) {
     b: data[2],
     a: data[3]
   };
+}
+
+function countOpaquePixels(canvas, x, y, width, height) {
+  const context = canvas.getContext("2d");
+  const { data } = context.getImageData(x, y, width, height);
+  let count = 0;
+
+  for (let index = 3; index < data.length; index += 4) {
+    if (data[index] > 0) {
+      count += 1;
+    }
+  }
+
+  return count;
 }
 
 function createCircleLayer() {
@@ -341,6 +419,29 @@ test("core: pixel test for vertical gradientRect follows top-to-bottom colors", 
 
   assert.equal(topPixel.r > bottomPixel.r, true);
   assert.equal(bottomPixel.b > topPixel.b, true);
+});
+
+test("core: text renders inside its layout box", () => {
+  const recipe = createRecipe([
+    {
+      type: "text",
+      text: "TEST",
+      origin: { x: 0.15, y: 0.2 },
+      size: { width: 0.7, height: 0.28 },
+      color: "rgba(255, 255, 255, 1)",
+      fontFamily: "sans-serif",
+      fontWeight: "bold"
+    }
+  ]);
+  const canvas = renderRecipeToCanvas(recipe, {
+    width: 256,
+    height: 128,
+    seed: 1
+  });
+
+  assert.equal(countOpaquePixels(canvas, 38, 25, 180, 40) > 0, true);
+  assert.equal(countOpaquePixels(canvas, 0, 0, 256, 12), 0);
+  assert.equal(countOpaquePixels(canvas, 0, 100, 256, 28), 0);
 });
 
 test("core: noise lifts alpha across the current canvas", () => {
@@ -552,6 +653,10 @@ test("core: exportTexture writes image and meta files", async () => {
     assert.equal(savedMeta.width, 48);
     assert.equal(savedMeta.height, 48);
     assert.equal(savedMeta.seed, 11);
+    assert.equal(exported.sourceMode, "preset");
+    assert.equal(exported.preset, "glow");
+    assert.equal(exported.seed, 11);
+    assert.equal(exported.metaSaved, true);
   } finally {
     await rm(workspaceRoot, { recursive: true, force: true });
   }
@@ -584,6 +689,9 @@ test("core: exportTexture can encode jpeg output", async () => {
 
     assert.equal(imageBytes.subarray(0, 3).toString("hex"), "ffd8ff");
     assert.equal(exported.format, "jpeg");
+    assert.equal(exported.sourceMode, "recipe");
+    assert.equal(exported.seed, 5);
+    assert.equal(exported.metaSaved, false);
     assert.equal(exported.metaPath, undefined);
   } finally {
     await rm(workspaceRoot, { recursive: true, force: true });
@@ -611,6 +719,10 @@ test("core: exportTexture can encode webp output", async () => {
     assert.equal(imageBytes.subarray(0, 4).toString("ascii"), "RIFF");
     assert.equal(imageBytes.subarray(8, 12).toString("ascii"), "WEBP");
     assert.equal(exported.format, "webp");
+    assert.equal(exported.sourceMode, "preset");
+    assert.equal(exported.preset, "panel");
+    assert.equal(exported.seed, 9);
+    assert.equal(exported.metaSaved, false);
     assert.equal(exported.metaPath, undefined);
   } finally {
     await rm(workspaceRoot, { recursive: true, force: true });
@@ -630,7 +742,11 @@ test("core: generateTexture resolves preset params into recipe and meta", () => 
   });
 
   assert.equal(generated.output.seed, 123);
+  assert.equal(generated.output.mode, "preset");
   assert.equal(generated.output.preset, "ring");
+  assert.equal(generated.output.usedDefaultSeed, false);
+  assert.equal(generated.output.recipeLayerCount, generated.recipe.layers.length);
+  assert.equal(generated.output.currentResultAvailable, true);
   assert.equal(generated.meta.width, 256);
   assert.equal(generated.meta.height, 128);
   assert.equal(generated.meta.params.thickness, 0.2);
@@ -645,10 +761,12 @@ test("core: generateTexture preserves explicit recipe input", () => {
     version: 1,
     layers: [
       {
-        type: "circle",
-        center: { x: 0.5, y: 0.5 },
-        radius: 0.25,
-        color: "#ffffff"
+        type: "text",
+        text: "LOCK",
+        origin: { x: 0.1, y: 0.25 },
+        size: { width: 0.8, height: 0.3 },
+        color: "#ffffff",
+        fontFamily: "sans-serif"
       }
     ]
   };
@@ -660,10 +778,12 @@ test("core: generateTexture preserves explicit recipe input", () => {
     seed: 9
   });
 
-  assert.deepEqual(generated.recipe, recipe);
+  assert.deepEqual(generated.recipe, normalizeRecipe(recipe));
   assert.equal(generated.meta.preset, undefined);
   assert.equal(generated.meta.params, undefined);
+  assert.equal(generated.output.mode, "recipe");
   assert.equal(generated.output.seed, 9);
+  assert.equal(generated.output.usedDefaultSeed, false);
 });
 
 test("core: generateTexture uses the default seed when none is provided", () => {
@@ -681,8 +801,10 @@ test("core: generateTexture uses the default seed when none is provided", () => 
   });
 
   assert.equal(first.output.seed, DEFAULT_TEXTURE_SEED);
+  assert.equal(first.output.usedDefaultSeed, true);
   assert.equal(first.meta.seed, DEFAULT_TEXTURE_SEED);
   assert.equal(second.output.seed, DEFAULT_TEXTURE_SEED);
+  assert.equal(second.output.usedDefaultSeed, true);
   assert.deepEqual(first.recipe, second.recipe);
   assert.deepEqual(first.imageBuffer, second.imageBuffer);
 });

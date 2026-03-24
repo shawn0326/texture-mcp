@@ -2,16 +2,21 @@
 
 仅保留待做事项。
 
+## 当前建议先做
+
+- 先补一版稳定文档资源：`layer reference`、`preset playbook`、`recipe examples`，把现有 layer / preset 元数据整理成 AI 和人都能直接消费的说明。
+- 在文档落地后，再评估映射为 MCP resources；如果宿主暂不支持，至少保证 `README` 之外还有可单独引用的结构化资料。
+- 结合黑盒联调继续打磨查询类 tools 的返回字段、错误信息和提示文案，重点提升 AI 首轮调用成功率。
+
 ## P2 文档与可发现性
 
 - 增加 layer reference、preset playbook、recipe examples 等稳定文档资源。
 - 根据宿主支持情况补充 MCP resources，承载结构化说明文档。
 - 评估补充 MCP prompts，沉淀推荐调用流程与最佳实践。
-- 继续打磨查询类 tools 的返回字段、错误信息和提示文案，提高 AI 调用成功率。
+- 为 README 或独立文档补齐工程护栏口径，例如默认 `seed`、路径安全边界、尺寸与复杂度限制。
 
 ## P2 工程与协议
 
-- 视需要整理工程护栏文档口径，例如默认 `seed`、路径安全边界、尺寸与复杂度限制。
 - 若后续有多 workspace 或宿主集成需求，扩展 `workspaceRoot` 的来源策略。
 - 明确核心事实优先通过 MCP 暴露，不把关键规则只放在宿主侧 prompt 或 skill 中。
 
@@ -26,5 +31,4 @@
 
 - 增加更多图层与组合场景的像素测试，尤其是 `blur`、`noise`、`gradientCircle`、`gradientRect` 的边界情况。
 - 视需要补充 golden image / snapshot 测试，用于 renderer 回归比较。
-- 为导出链路补充更多格式与质量参数测试，例如 `webp`、不同 `jpeg quality`。
 - 如需对外展示，可补一个会保留产物的 demo 脚本或示例命令。

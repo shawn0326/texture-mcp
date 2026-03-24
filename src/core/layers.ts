@@ -6,7 +6,8 @@ import {
   gradientRectLayerSchema,
   noiseLayerSchema,
   rectLayerSchema,
-  ringLayerSchema
+  ringLayerSchema,
+  textLayerSchema
 } from "./schema.js";
 import type {
   JsonSchemaObject,
@@ -15,12 +16,25 @@ import type {
   LayerSpec
 } from "./types.js";
 
-type LayerDefinition = Omit<LayerSchemaInfo, "schema"> & {
+type LayerDefinition = Omit<
+  LayerSchemaInfo,
+  "schema" | "mode" | "parameterNames" | "requiredParameterNames" | "constraintFields" | "exampleCount"
+> & {
   schemaDefinition: z.ZodTypeAny;
 };
 
 function toSerializableSchema(schema: z.ZodTypeAny): JsonSchemaObject {
   return z.toJSONSchema(schema) as JsonSchemaObject;
+}
+
+function getObjectSchemaRequiredNames(schema: JsonSchemaObject): string[] {
+  const required = schema.required;
+
+  if (!Array.isArray(required)) {
+    return [];
+  }
+
+  return required.filter((value): value is string => typeof value === "string");
 }
 
 const layerDefinitions: LayerDefinition[] = [
@@ -178,6 +192,51 @@ const layerDefinitions: LayerDefinition[] = [
     ]
   },
   {
+    type: "text",
+    category: "draw",
+    description: "A single-line text label drawn inside a normalized layout box.",
+    schemaDefinition: textLayerSchema,
+    parameterSemantics: {
+      text: "Single-line text content to render.",
+      origin: "Normalized top-left corner of the text layout box.",
+      size: "Normalized width and height of the text layout box.",
+      color: "CSS color string used for the text fill.",
+      fontFamily: "Canvas/CSS font family string. Rendering may vary across hosts based on available fonts.",
+      fontSize: "Optional normalized font size relative to canvas height. Defaults to roughly 80% of the box height.",
+      fontWeight: "Optional font weight, limited to normal or bold.",
+      fontStyle: "Optional font style, limited to normal or italic.",
+      align: "Horizontal alignment within the layout box.",
+      verticalAlign: "Vertical alignment within the layout box.",
+      clip: "Whether to clip text drawing to the layout box."
+    },
+    constraints: [
+      {
+        field: "text",
+        description: "Must be a non-empty string up to 256 characters."
+      }
+    ],
+    coordinateSpace: "Normalized canvas coordinates for `origin` and `size`; `fontSize` is normalized to canvas height.",
+    commonUses: ["panel labels", "HUD text", "damage numbers", "simple UI titles"],
+    compositionNotes: [
+      "Use multiple `text` layers with different colors and offsets if you want faux outlines or shadows.",
+      "Place `blur` after text layers if you want the whole text result softened or bloomed."
+    ],
+    examples: [
+      {
+        type: "text",
+        text: "ALERT",
+        origin: { x: 0.16, y: 0.32 },
+        size: { width: 0.68, height: 0.2 },
+        color: "rgba(255,255,255,1)",
+        fontFamily: "sans-serif",
+        fontWeight: "bold",
+        align: "center",
+        verticalAlign: "middle",
+        clip: true
+      }
+    ]
+  },
+  {
     type: "noise",
     category: "effect",
     description: "A fullscreen noise pass applied to the current canvas result.",
@@ -238,11 +297,21 @@ export function getLayerSchemaInfo(type: LayerSpec["type"]): LayerSchemaInfo | u
     return undefined;
   }
 
+  const schema = toSerializableSchema(definition.schemaDefinition);
+  const parameterNames = Object.keys(definition.parameterSemantics);
+  const requiredParameterNames = getObjectSchemaRequiredNames(schema).filter((name) => name !== "type");
+  const constraintFields = definition.constraints.map((constraint) => constraint.field);
+
   return {
     type: definition.type,
     category: definition.category,
     description: definition.description,
-    schema: toSerializableSchema(definition.schemaDefinition),
+    mode: "recipe",
+    parameterNames,
+    requiredParameterNames,
+    constraintFields,
+    exampleCount: definition.examples.length,
+    schema,
     parameterSemantics: definition.parameterSemantics,
     constraints: definition.constraints,
     coordinateSpace: definition.coordinateSpace,

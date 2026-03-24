@@ -58,6 +58,10 @@ function createToolSuccess(text: string, structuredContent: Record<string, unkno
   };
 }
 
+function formatItemList(items: string[]): string {
+  return items.map((item) => `\`${item}\``).join(", ");
+}
+
 function logDebug(message: string, details?: Record<string, unknown>): void {
   if (details) {
     console.error(`[texture-mcp] ${message} ${JSON.stringify(details)}`);
@@ -81,12 +85,14 @@ export function createTextureToolDefinitions(state: AppState): TextureToolDefini
     {
       name: "generate_texture",
       title: "Generate Texture",
-      description: "Generate a texture result and store it as the current state.",
+      description:
+        "Render a texture from either a semantic preset or an explicit recipe, then store it as the current in-memory result for this MCP session. Use `mode: \"preset\"` with `list_presets` and `get_preset_schema` for high-level generation, or `mode: \"recipe\"` with `validate_recipe` for precise layer control. If `seed` is omitted, a fixed default seed is used so results stay reproducible. Call `export_texture` after this tool when you want to write the current result to disk.",
       inputSchema: generateTextureInputSchema,
       outputSchema: generateTextureOutputSchema,
       execute: async (input) => {
         const parsedInput = input as GenerateTextureInput;
         const generated = generateTexture(parsedInput);
+        const modeText = parsedInput.mode === "preset" ? `preset \`${generated.output.preset}\`` : "recipe mode";
 
         setCurrentResult(state, {
           recipe: generated.recipe,
@@ -95,7 +101,7 @@ export function createTextureToolDefinitions(state: AppState): TextureToolDefini
         });
 
         return createToolSuccess(
-          `Texture generated (${generated.output.width}x${generated.output.height}).`,
+          `Texture generated from ${modeText} at ${generated.output.width}x${generated.output.height} with seed ${generated.output.seed}. The result is now stored as the current in-memory texture for this session. Call \`export_texture\` to save it to disk.`,
           generated.output
         );
       }
@@ -103,7 +109,8 @@ export function createTextureToolDefinitions(state: AppState): TextureToolDefini
     {
       name: "export_texture",
       title: "Export Texture",
-      description: "Export the current texture result to a file inside the workspace.",
+      description:
+        "Write the current generated result to a relative path inside `workspaceRoot`. This tool requires a successful `generate_texture` call earlier in the same MCP session. Absolute paths and paths that escape `workspaceRoot` are rejected. Supports `png`, `jpeg`, and `webp`; `quality` is relevant for lossy formats such as `jpeg` and `webp`.",
       inputSchema: exportTextureInputSchema,
       outputSchema: exportTextureOutputSchema,
       execute: async (input) => {
@@ -111,30 +118,45 @@ export function createTextureToolDefinitions(state: AppState): TextureToolDefini
         const current = getCurrentResult(state);
 
         if (!current) {
-          return createToolError("No current result is available. Run `generate_texture` first.");
+          return createToolError(
+            "No current result is available. Run `generate_texture` first in this MCP session, then call `export_texture` with a relative path inside `workspaceRoot`."
+          );
         }
 
         const exported = await exportTexture(current, state.workspaceRoot, parsedInput);
 
-        return createToolSuccess(exported.message, exported);
+        return createToolSuccess(
+          exported.metaPath
+            ? `Texture exported to \`${exported.savedPath}\` as ${exported.format}. Metadata was also written to \`${exported.metaPath}\`.`
+            : `Texture exported to \`${exported.savedPath}\` as ${exported.format}.`,
+          exported
+        );
       }
     },
     {
       name: "list_layer_types",
       title: "List Layer Types",
-      description: "List supported recipe layer types and whether they are draw or effect layers.",
+      description:
+        "List the supported recipe DSL layer types with category and short descriptions. Use this as the discovery entry point before `get_layer_schema` when you need to author or inspect recipe-mode textures.",
       inputSchema: listLayerTypesInputSchema,
       outputSchema: listLayerTypesOutputSchema,
       execute: async () => {
         const layers: ListLayerTypesOutput["layers"] = listLayerCatalog();
 
-        return createToolSuccess(JSON.stringify(layers, null, 2), { layers });
+        return createToolSuccess(
+          `Found ${layers.length} layer types: ${formatItemList(layers.map((layer) => layer.type))}. Call \`get_layer_schema\` for detailed semantics, constraints, and examples for a specific type.`,
+          {
+            count: layers.length,
+            layers
+          }
+        );
       }
     },
     {
       name: "get_layer_schema",
       title: "Get Layer Schema",
-      description: "Return schema and semantic notes for a specific layer type.",
+      description:
+        "Return the schema, parameter semantics, constraints, coordinate-space notes, composition notes, and examples for one recipe layer type. Use this before creating or repairing recipe-mode input so the layer matches the expected normalized DSL.",
       inputSchema: getLayerSchemaInputSchema,
       outputSchema: getLayerSchemaOutputSchema,
       execute: async (input) => {
@@ -142,28 +164,41 @@ export function createTextureToolDefinitions(state: AppState): TextureToolDefini
         const layerSchema = getLayerSchemaInfo(parsedInput.type);
 
         if (!layerSchema) {
-          return createToolError(`Unknown layer type: ${parsedInput.type}`);
+          return createToolError(
+            `Unknown layer type: ${parsedInput.type}. Call \`list_layer_types\` to discover the supported recipe DSL types.`
+          );
         }
 
-        return createToolSuccess(JSON.stringify(layerSchema, null, 2), layerSchema);
+        return createToolSuccess(
+          `Layer schema returned for \`${layerSchema.type}\`. Use \`parameterSemantics\`, \`constraints\`, \`compositionNotes\`, and \`examples\` to build or repair recipe-mode input.`,
+          layerSchema
+        );
       }
     },
     {
       name: "list_presets",
       title: "List Presets",
-      description: "List the placeholder preset catalog.",
+      description:
+        "List the built-in semantic presets with short descriptions. Use this as the discovery entry point before `get_preset_schema` or `generate_texture` in `preset` mode.",
       inputSchema: listPresetsInputSchema,
       outputSchema: listPresetsOutputSchema,
       execute: async () => {
         const presets: ListPresetsOutput["presets"] = listPresetCatalog();
 
-        return createToolSuccess(JSON.stringify(presets, null, 2), { presets });
+        return createToolSuccess(
+          `Found ${presets.length} presets: ${formatItemList(presets.map((preset) => preset.name))}. Call \`get_preset_schema\` for valid params and defaults before using \`generate_texture\` in preset mode.`,
+          {
+            count: presets.length,
+            presets
+          }
+        );
       }
     },
     {
       name: "get_preset_schema",
       title: "Get Preset Schema",
-      description: "Return placeholder schema metadata for a preset.",
+      description:
+        "Return the schema and default parameters for one built-in preset. Use this to discover valid `params` and defaults before calling `generate_texture` with `mode: \"preset\"`.",
       inputSchema: getPresetSchemaInputSchema,
       outputSchema: getPresetSchemaOutputSchema,
       execute: async (input) => {
@@ -171,28 +206,29 @@ export function createTextureToolDefinitions(state: AppState): TextureToolDefini
         const presetDefinition = getPresetSchemaInfo(parsedInput.preset);
 
         if (!presetDefinition) {
-          return createToolError(`Unknown preset: ${parsedInput.preset}`);
+          return createToolError(
+            `Unknown preset: ${parsedInput.preset}. Call \`list_presets\` to discover the available built-in presets.`
+          );
         }
 
-        return createToolSuccess(JSON.stringify(presetDefinition, null, 2), {
-          name: presetDefinition.name,
-          description: presetDefinition.description,
-          defaultParams: presetDefinition.defaultParams,
-          schema: presetDefinition.schema
-        });
+        return createToolSuccess(
+          `Preset schema returned for \`${presetDefinition.name}\`. Start from \`defaultParams\`, then override only the parameters you need before calling \`generate_texture\` in preset mode.`,
+          presetDefinition
+        );
       }
     },
     {
       name: "validate_recipe",
       title: "Validate Recipe",
-      description: "Validate a recipe, returning errors or the normalized recipe and stats.",
+      description:
+        "Validate a recipe without rendering it. Returns `valid` plus readable `errors`, and when validation succeeds also returns `normalizedRecipe` and `stats`. Recommended before `generate_texture` when working in `recipe` mode.",
       inputSchema: validateRecipeInputSchema,
       outputSchema: validateRecipeOutputSchema,
       execute: async (input) => {
         const result = validateRecipe((input as { recipe: unknown }).recipe);
         const text = result.valid
-          ? "Recipe is valid."
-          : `Recipe is invalid:\n${result.errors.map((error) => `- ${error.path}: ${error.message}`).join("\n")}`;
+          ? `Recipe is valid. Use \`normalizedRecipe\` for the canonical form and \`stats\` for complexity checks, then pass the recipe to \`generate_texture\` with \`mode: "recipe"\`.`
+          : `Recipe is invalid. Review these issues before rendering:\n${result.errors.map((error) => `- ${error.path}: ${error.message}`).join("\n")}\nUse \`get_layer_schema\` for the relevant layer type when you need field-level constraints or examples.`;
 
         return createToolSuccess(text, result);
       }

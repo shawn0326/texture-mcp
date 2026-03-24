@@ -27,6 +27,7 @@ Current recipe layer types:
 - `ring`
 - `rect`
 - `gradientRect`
+- `text`
 - `noise`
 - `blur`
 
@@ -44,6 +45,7 @@ Notes:
 
 - The recipe DSL is intentionally small and flat.
 - `noise` and `blur` are full-canvas effect layers, not local shape modifiers.
+- `text` uses canvas font-family strings, so rendering may vary slightly across hosts depending on available fonts.
 - `export_texture` only writes to relative paths inside `workspaceRoot`.
 
 ## Development
@@ -94,6 +96,18 @@ For AI callers, the recommended sequence is:
 Use presets when you want a fast semantic starting point.
 Use recipe mode when you need precise control over layer composition.
 
+## Structured Output Highlights
+
+The tools return stable `structuredContent` intended for MCP callers.
+
+- `list_presets` returns `count` and `presets`.
+- `get_preset_schema` returns full preset schema metadata plus summary fields such as `mode`, `paramCount`, `paramNames`, `requiredParamNames`, and `defaultParamNames`.
+- `list_layer_types` returns `count` and `layers`.
+- `get_layer_schema` returns full layer semantics plus summary fields such as `mode`, `parameterNames`, `requiredParameterNames`, `constraintFields`, and `exampleCount`.
+- `validate_recipe` returns `valid`, `errorCount`, `readyForGeneration`, `errors`, and when valid also `normalizedRecipe` and `stats`.
+- `generate_texture` returns `mode`, `width`, `height`, `preset`, `seed`, `usedDefaultSeed`, `recipeLayerCount`, and `currentResultAvailable`.
+- `export_texture` returns `savedPath`, `metaPath`, `width`, `height`, `format`, `sourceMode`, `preset`, `seed`, and `metaSaved`.
+
 ## Example: Discover A Preset
 
 List available presets:
@@ -115,6 +129,15 @@ Inspect one preset:
   }
 }
 ```
+
+`get_preset_schema` also returns summary fields that are easier to consume than raw JSON Schema:
+
+- `mode`
+- `paramCount`
+- `paramNames`
+- `requiredParamNames`
+- `defaultParamNames`
+- `defaultParams`
 
 Typical `beam` parameters:
 
@@ -148,6 +171,17 @@ Inspect one layer type:
   }
 }
 ```
+
+`get_layer_schema` also returns high-signal summary fields:
+
+- `mode`
+- `parameterNames`
+- `requiredParameterNames`
+- `constraintFields`
+- `exampleCount`
+- `parameterSemantics`
+- `constraints`
+- `examples`
 
 ## Example: Validate A Recipe First
 
@@ -190,6 +224,8 @@ Inspect one layer type:
 When valid, `validate_recipe` returns:
 
 - `valid`
+- `errorCount`
+- `readyForGeneration`
 - `errors`
 - `normalizedRecipe`
 - `stats`
@@ -215,6 +251,17 @@ When valid, `validate_recipe` returns:
   }
 }
 ```
+
+`generate_texture` returns structured fields such as:
+
+- `mode`
+- `width`
+- `height`
+- `preset`
+- `seed`
+- `usedDefaultSeed`
+- `recipeLayerCount`
+- `currentResultAvailable`
 
 ## Example: Generate From A Recipe
 
@@ -247,6 +294,18 @@ When valid, `validate_recipe` returns:
   }
 }
 ```
+
+`export_texture` returns structured fields such as:
+
+- `savedPath`
+- `metaPath`
+- `width`
+- `height`
+- `format`
+- `sourceMode`
+- `preset`
+- `seed`
+- `metaSaved`
 
 `generate_texture` stores the result as the current in-memory texture state. `export_texture` then writes that current result to disk.
 

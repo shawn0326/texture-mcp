@@ -140,6 +140,9 @@ test("mcp integration: initialize and list tools", async () => {
 
     const toolListResult = await session.request("tools/list", {});
     const toolNames = toolListResult.tools.map((tool) => tool.name).sort();
+    const generateTool = toolListResult.tools.find((tool) => tool.name === "generate_texture");
+    const exportTool = toolListResult.tools.find((tool) => tool.name === "export_texture");
+    const validateTool = toolListResult.tools.find((tool) => tool.name === "validate_recipe");
 
     assert.deepEqual(toolNames, [
       "export_texture",
@@ -150,6 +153,12 @@ test("mcp integration: initialize and list tools", async () => {
       "list_presets",
       "validate_recipe"
     ]);
+    assert.match(generateTool.description, /preset/i);
+    assert.match(generateTool.description, /recipe/i);
+    assert.match(generateTool.description, /seed/i);
+    assert.match(exportTool.description, /workspaceRoot/i);
+    assert.match(exportTool.description, /generate_texture/i);
+    assert.match(validateTool.description, /normalizedRecipe/);
   } finally {
     await session.close();
   }
@@ -165,7 +174,9 @@ test("mcp integration: placeholder info tools return structured results", async 
     });
 
     assert.notEqual(presetsResult.isError, true, session.getStderr());
+    assert.equal(presetsResult.structuredContent.count, 6);
     assert.equal(presetsResult.structuredContent.presets.length, 6);
+    assert.match(presetsResult.content[0].text, /get_preset_schema/);
     assert.deepEqual(
       presetsResult.structuredContent.presets.map((preset) => preset.name).sort(),
       ["beam", "colorRamp", "glow", "panel", "ring", "smoke"]
@@ -180,7 +191,18 @@ test("mcp integration: placeholder info tools return structured results", async 
 
     assert.notEqual(schemaResult.isError, true, session.getStderr());
     assert.equal(schemaResult.structuredContent.name, "colorRamp");
+    assert.equal(schemaResult.structuredContent.mode, "preset");
+    assert.equal(schemaResult.structuredContent.paramCount, 5);
+    assert.deepEqual(schemaResult.structuredContent.paramNames, [
+      "palette",
+      "orientation",
+      "thickness",
+      "padding",
+      "cornerRadius"
+    ]);
     assert.equal(schemaResult.structuredContent.defaultParams.palette, "heat");
+    assert.match(schemaResult.content[0].text, /defaultParams/);
+    assert.match(schemaResult.content[0].text, /generate_texture/);
 
     const layerTypesResult = await session.request("tools/call", {
       name: "list_layer_types",
@@ -188,18 +210,37 @@ test("mcp integration: placeholder info tools return structured results", async 
     });
 
     assert.notEqual(layerTypesResult.isError, true, session.getStderr());
-    assert.equal(layerTypesResult.structuredContent.layers.length, 7);
+    assert.equal(layerTypesResult.structuredContent.count, 8);
+    assert.equal(layerTypesResult.structuredContent.layers.length, 8);
+    assert.match(layerTypesResult.content[0].text, /get_layer_schema/);
 
     const layerSchemaResult = await session.request("tools/call", {
       name: "get_layer_schema",
       arguments: {
-        type: "gradientRect"
+        type: "text"
       }
     });
 
     assert.notEqual(layerSchemaResult.isError, true, session.getStderr());
-    assert.equal(layerSchemaResult.structuredContent.type, "gradientRect");
+    assert.equal(layerSchemaResult.structuredContent.type, "text");
     assert.equal(layerSchemaResult.structuredContent.category, "draw");
+    assert.equal(layerSchemaResult.structuredContent.mode, "recipe");
+    assert.deepEqual(layerSchemaResult.structuredContent.parameterNames, [
+      "text",
+      "origin",
+      "size",
+      "color",
+      "fontFamily",
+      "fontSize",
+      "fontWeight",
+      "fontStyle",
+      "align",
+      "verticalAlign",
+      "clip"
+    ]);
+    assert.deepEqual(layerSchemaResult.structuredContent.constraintFields, ["text"]);
+    assert.equal(layerSchemaResult.structuredContent.exampleCount, 1);
+    assert.match(layerSchemaResult.content[0].text, /examples/);
 
     const validateResult = await session.request("tools/call", {
       name: "validate_recipe",
@@ -208,10 +249,11 @@ test("mcp integration: placeholder info tools return structured results", async 
           version: 1,
           layers: [
             {
-              type: "gradientCircle",
-              center: { x: 0.5, y: 0.5 },
-              radius: 0.25,
-              colors: ["#ffffff", "rgba(255,255,255,0)"]
+              type: "text",
+              text: "OK",
+              origin: { x: 0.2, y: 0.2 },
+              size: { width: 0.6, height: 0.2 },
+              color: "#ffffff"
             }
           ]
         }
@@ -220,7 +262,10 @@ test("mcp integration: placeholder info tools return structured results", async 
 
     assert.notEqual(validateResult.isError, true, session.getStderr());
     assert.equal(validateResult.structuredContent.valid, true);
-    assert.equal(validateResult.structuredContent.normalizedRecipe.layers[0].type, "gradientCircle");
+    assert.equal(validateResult.structuredContent.errorCount, 0);
+    assert.equal(validateResult.structuredContent.readyForGeneration, true);
+    assert.equal(validateResult.structuredContent.normalizedRecipe.layers[0].type, "text");
+    assert.match(validateResult.content[0].text, /generate_texture/);
   } finally {
     await session.close();
   }
@@ -239,6 +284,7 @@ test("mcp integration: invalid calls return tool errors", async () => {
 
     assert.equal(unknownPresetResult.isError, true, session.getStderr());
     assert.match(unknownPresetResult.content[0].text, /Unknown preset/);
+    assert.match(unknownPresetResult.content[0].text, /list_presets/);
 
     const exportWithoutGenerateResult = await session.request("tools/call", {
       name: "export_texture",
@@ -250,6 +296,7 @@ test("mcp integration: invalid calls return tool errors", async () => {
 
     assert.equal(exportWithoutGenerateResult.isError, true, session.getStderr());
     assert.match(exportWithoutGenerateResult.content[0].text, /Run `generate_texture` first/);
+    assert.match(exportWithoutGenerateResult.content[0].text, /workspaceRoot/);
 
     const oversizedGenerateResult = await session.request("tools/call", {
       name: "generate_texture",
@@ -284,7 +331,10 @@ test("mcp integration: invalid calls return tool errors", async () => {
 
     assert.equal(invalidRecipeResult.isError, undefined, session.getStderr());
     assert.equal(invalidRecipeResult.structuredContent.valid, false);
+    assert.equal(invalidRecipeResult.structuredContent.readyForGeneration, false);
     assert.equal(invalidRecipeResult.structuredContent.errors.length > 0, true);
+    assert.equal(invalidRecipeResult.structuredContent.errorCount > 0, true);
+    assert.match(invalidRecipeResult.content[0].text, /get_layer_schema/);
   } finally {
     await session.close();
   }
@@ -315,10 +365,16 @@ test("mcp integration: generate then export validates the current result", async
     });
 
     assert.notEqual(generateResult.isError, true, session.getStderr());
+    assert.equal(generateResult.structuredContent.mode, "preset");
     assert.equal(generateResult.structuredContent.width, 256);
     assert.equal(generateResult.structuredContent.height, 128);
     assert.equal(generateResult.structuredContent.seed, 123);
     assert.equal(generateResult.structuredContent.preset, "ring");
+    assert.equal(generateResult.structuredContent.usedDefaultSeed, false);
+    assert.equal(generateResult.structuredContent.currentResultAvailable, true);
+    assert.equal(generateResult.structuredContent.recipeLayerCount > 0, true);
+    assert.match(generateResult.content[0].text, /export_texture/);
+    assert.match(generateResult.content[0].text, /seed 123/);
 
     const absolutePathResult = await session.request("tools/call", {
       name: "export_texture",
@@ -357,6 +413,11 @@ test("mcp integration: generate then export validates the current result", async
     assert.equal(exportResult.structuredContent.height, 128);
     assert.equal(exportResult.structuredContent.savedPath, absoluteSavedPath);
     assert.equal(exportResult.structuredContent.metaPath, absoluteMetaPath);
+    assert.equal(exportResult.structuredContent.sourceMode, "preset");
+    assert.equal(exportResult.structuredContent.preset, "ring");
+    assert.equal(exportResult.structuredContent.seed, 123);
+    assert.equal(exportResult.structuredContent.metaSaved, true);
+    assert.match(exportResult.content[0].text, /meta/i);
 
     const imageBytes = await readFile(absoluteSavedPath);
     const metaText = await readFile(absoluteMetaPath, "utf8");
