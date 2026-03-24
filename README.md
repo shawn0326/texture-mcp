@@ -1,5 +1,7 @@
 # texture-mcp
 
+[![npm version](https://img.shields.io/npm/v/texture-mcp)](https://www.npmjs.com/package/texture-mcp)
+
 A procedural 2D VFX texture generator exposed via MCP, using presets and recipes to produce controllable and reproducible visual assets for AI workflows.
 
 ## What It Provides
@@ -48,39 +50,48 @@ Notes:
 - `text` uses canvas font-family strings, so rendering may vary slightly across hosts depending on available fonts.
 - `export_texture` only writes to relative paths inside `workspaceRoot`.
 
-## Development
+## Quick Start
+
+Use the published npm package directly:
+
+```bash
+codex mcp add texture -- npx -y texture-mcp
+```
+
+Once added, the simplest user flow is:
+
+1. Ask the client to list presets or layer types.
+2. Inspect one preset or layer schema.
+3. Validate a recipe if you are using `recipe` mode.
+4. Generate a texture.
+5. Export the current result to a relative path inside the workspace.
+
+Use `preset` mode when you want the fastest path to a useful result.
+Use `recipe` mode when you want direct control over layer composition.
+
+## Local Development
 
 ```bash
 npm install
 npm run build
 ```
 
-Run the compiled MCP entry:
-
-```bash
-npm start
-```
-
-Run the current smoke test:
-
-```bash
-npm test
-```
-
-## Use As MCP
-
-This package is currently configured as a CLI-style MCP tool through the `texture-mcp` command.
-
-For local development, build first and then register the compiled entry:
+Register the local compiled entry during development:
 
 ```bash
 codex mcp add texture -- node /path/to/dist/mcp/index.js
 ```
 
-After publishing to npm, it can also be used through the package command:
+Run the local server entry:
 
 ```bash
-codex mcp add texture -- npx -y texture-mcp
+npm start
+```
+
+Run the current smoke and integration tests:
+
+```bash
+npm test
 ```
 
 ## Recommended Workflow
@@ -346,4 +357,4 @@ For JPEG or WebP output:
 
 ## Status
 
-The package metadata is ready for npm publishing. It can still be used locally through the compiled entry or, after publishing, through `npx -y texture-mcp`.
+The package is published on npm and can be used directly through `npx -y texture-mcp`. Local development through the compiled entry is also supported.
