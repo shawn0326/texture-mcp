@@ -92,6 +92,17 @@ npx -y texture-mcp
 
 The transport is **stdio**.
 
+### Stdio Compatibility
+
+Different MCP hosts do not always frame stdio messages in exactly the same way.
+
+- Some hosts send newline-delimited JSON messages.
+- Some hosts send JSON-RPC messages with `Content-Length` headers.
+
+This project intentionally uses a custom stdio transport that accepts both framing styles and replies in the same framing style used by the client. This compatibility layer exists because the `@modelcontextprotocol/sdk` stdio transport used during development did not reliably cover both host behaviors out of the box.
+
+If a host can connect in one environment but fails the MCP handshake in another, first verify that you are running a build that includes this compatibility transport. During local development, prefer the compiled local entry instead of assuming an older published npm version already contains the latest MCP transport fixes.
+
 ### Usage Flow
 
 Once connected, the simplest user flow is:
@@ -117,6 +128,8 @@ Register the local compiled entry during development:
 ```bash
 codex mcp add texture -- node /path/to/dist/mcp/index.js
 ```
+
+This is also the recommended way to verify MCP handshake behavior in Codex after local transport changes, because `npx -y texture-mcp` may resolve to an older published package version.
 
 Run the local server entry:
 

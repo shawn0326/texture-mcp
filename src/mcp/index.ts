@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
-import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 import { pathToFileURL } from "node:url";
 import { createAppState } from "./state.js";
+import { CompatibleStdioServerTransport } from "./stdio-transport.js";
 import {
   createListToolsResult,
   createTextureToolDefinitions,
@@ -46,10 +46,9 @@ export async function startMcpServer(options?: { dryRun?: boolean }): Promise<vo
     return;
   }
 
-  const transport = new StdioServerTransport();
+  const transport = new CompatibleStdioServerTransport();
 
   await server.connect(transport);
-  console.error("[texture-mcp] MCP server started on stdio");
 }
 
 const entryUrl = process.argv[1] ? pathToFileURL(process.argv[1]).href : null;

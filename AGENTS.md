@@ -158,3 +158,11 @@
 - 不要在没有明确需求时引入 UI、HTTP 服务、复杂预览链路或大型框架依赖。
 - 不要为了单个效果快速堆特例分支，优先沉淀为通用 recipe 能力或清晰的 preset 参数。
 - 不要破坏 `workspaceRoot` 路径约束，也不要接受绝对导出路径。
+
+## MCP Stdio 兼容性约定
+
+- 当前项目的 MCP `stdio` 传输层需要兼容两类 framing：换行分隔 JSON 与带 `Content-Length` 的 JSON-RPC 消息。
+- 已知某些宿主对 `stdio` framing 的实现存在差异，可能出现一个宿主可连接、另一个宿主在 `initialize` 握手阶段失败的情况。
+- 当前项目不要默认假设 `@modelcontextprotocol/sdk` 自带的 `StdioServerTransport` 已经覆盖上述差异；如无额外验证，不要贸然切回。
+- 如需调整 `src/mcp/stdio-transport.ts` 或替换 transport，必须至少补或保留黑盒测试，覆盖这两类 framing 的 `initialize` 与基础 tool 调用。
+- 排查 MCP 握手失败时，优先检查是否有 `stdout` 污染、stderr 启动日志干扰、framing 不匹配，或本地运行的是未包含兼容性修复的旧构建 / 已发布版本。

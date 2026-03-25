@@ -63,6 +63,12 @@ function formatItemList(items: string[]): string {
 }
 
 function logDebug(message: string, details?: Record<string, unknown>): void {
+  const debugFlag = process.env.TEXTURE_MCP_DEBUG?.trim().toLowerCase();
+
+  if (debugFlag !== "1" && debugFlag !== "true") {
+    return;
+  }
+
   if (details) {
     console.error(`[texture-mcp] ${message} ${JSON.stringify(details)}`);
     return;

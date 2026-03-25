@@ -12,7 +12,78 @@ const projectRoot = path.resolve(__dirname, "..");
 const entryFile = path.join(projectRoot, "dist", "mcp", "index.js");
 const protocolVersion = "2025-03-26";
 
-async function createMcpSession() {
+function encodeMessage(message, framing) {
+  const payload = JSON.stringify(message);
+
+  if (framing === "content-length") {
+    return `Content-Length: ${Buffer.byteLength(payload, "utf8")}\r\n\r\n${payload}`;
+  }
+
+  return `${payload}\n`;
+}
+
+function parseJsonLines(buffer) {
+  const messages = [];
+  let remaining = buffer;
+
+  while (true) {
+    const newlineIndex = remaining.indexOf("\n");
+
+    if (newlineIndex === -1) {
+      break;
+    }
+
+    const line = remaining.slice(0, newlineIndex).replace(/\r$/, "");
+    remaining = remaining.slice(newlineIndex + 1);
+
+    if (!line.trim()) {
+      continue;
+    }
+
+    messages.push(JSON.parse(line));
+  }
+
+  return { messages, remaining };
+}
+
+function parseContentLengthMessages(buffer) {
+  const messages = [];
+  let remaining = buffer;
+
+  while (true) {
+    const separatorIndex = remaining.indexOf("\r\n\r\n");
+    const separatorLength = separatorIndex === -1 ? 0 : 4;
+    const fallbackSeparatorIndex = separatorIndex === -1 ? remaining.indexOf("\n\n") : -1;
+    const headerIndex = separatorIndex === -1 ? fallbackSeparatorIndex : separatorIndex;
+    const headerLength = separatorIndex === -1 ? 2 : separatorLength;
+
+    if (headerIndex === -1) {
+      break;
+    }
+
+    const headerText = remaining.slice(0, headerIndex);
+    const contentLengthMatch = /^content-length\s*:\s*(\d+)$/im.exec(headerText);
+
+    assert.ok(contentLengthMatch, `Missing Content-Length header.\nHeader:\n${headerText}`);
+
+    const contentLength = Number.parseInt(contentLengthMatch[1], 10);
+    const bodyStart = headerIndex + headerLength;
+    const bodyEnd = bodyStart + contentLength;
+
+    if (remaining.length < bodyEnd) {
+      break;
+    }
+
+    const payload = remaining.slice(bodyStart, bodyEnd);
+    messages.push(JSON.parse(payload));
+    remaining = remaining.slice(bodyEnd);
+  }
+
+  return { messages, remaining };
+}
+
+async function createMcpSession(options = {}) {
+  const framing = options.framing ?? "jsonl";
   const child = spawn(process.execPath, [entryFile], {
     cwd: projectRoot,
     stdio: ["pipe", "pipe", "pipe"]
@@ -26,22 +97,14 @@ async function createMcpSession() {
   child.stdout.on("data", (chunk) => {
     stdoutBuffer += chunk.toString();
 
-    while (true) {
-      const newlineIndex = stdoutBuffer.indexOf("\n");
+    const parsed =
+      framing === "content-length"
+        ? parseContentLengthMessages(stdoutBuffer)
+        : parseJsonLines(stdoutBuffer);
 
-      if (newlineIndex === -1) {
-        break;
-      }
+    stdoutBuffer = parsed.remaining;
 
-      const line = stdoutBuffer.slice(0, newlineIndex).replace(/\r$/, "");
-      stdoutBuffer = stdoutBuffer.slice(newlineIndex + 1);
-
-      if (!line.trim()) {
-        continue;
-      }
-
-      const message = JSON.parse(line);
-
+    for (const message of parsed.messages) {
       if ("id" in message && pending.has(message.id)) {
         const requestState = pending.get(message.id);
         clearTimeout(requestState.timeout);
@@ -76,7 +139,7 @@ async function createMcpSession() {
   });
 
   function sendMessage(message) {
-    child.stdin.write(`${JSON.stringify(message)}\n`);
+    child.stdin.write(encodeMessage(message, framing));
   }
 
   function request(method, params) {
@@ -159,6 +222,23 @@ test("mcp integration: initialize and list tools", async () => {
     assert.match(exportTool.description, /workspaceRoot/i);
     assert.match(exportTool.description, /generate_texture/i);
     assert.match(validateTool.description, /normalizedRecipe/);
+  } finally {
+    await session.close();
+  }
+});
+
+test("mcp integration: initialize and list tools over content-length framing", async () => {
+  const session = await createMcpSession({ framing: "content-length" });
+
+  try {
+    assert.ok(session.initializeResult.capabilities.tools);
+
+    const toolListResult = await session.request("tools/list", {});
+    const toolNames = toolListResult.tools.map((tool) => tool.name).sort();
+
+    assert.equal(toolNames.includes("generate_texture"), true);
+    assert.equal(toolNames.includes("export_texture"), true);
+    assert.equal(toolNames.includes("validate_recipe"), true);
   } finally {
     await session.close();
   }
