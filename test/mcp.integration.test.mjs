@@ -200,6 +200,11 @@ test("mcp integration: initialize and list tools", async () => {
 
   try {
     assert.ok(session.initializeResult.capabilities.tools);
+    assert.ok(session.initializeResult.capabilities.resources);
+    assert.ok(session.initializeResult.capabilities.prompts);
+    assert.equal(session.initializeResult.capabilities.resources.subscribe, false);
+    assert.equal(session.initializeResult.capabilities.resources.listChanged, false);
+    assert.equal(session.initializeResult.capabilities.prompts.listChanged, false);
 
     const toolListResult = await session.request("tools/list", {});
     const toolNames = toolListResult.tools.map((tool) => tool.name).sort();
@@ -232,13 +237,77 @@ test("mcp integration: initialize and list tools over content-length framing", a
 
   try {
     assert.ok(session.initializeResult.capabilities.tools);
+    assert.ok(session.initializeResult.capabilities.resources);
+    assert.ok(session.initializeResult.capabilities.prompts);
 
     const toolListResult = await session.request("tools/list", {});
     const toolNames = toolListResult.tools.map((tool) => tool.name).sort();
+    const resourcesResult = await session.request("resources/list", {});
+    const promptsResult = await session.request("prompts/list", {});
 
     assert.equal(toolNames.includes("generate_texture"), true);
     assert.equal(toolNames.includes("export_texture"), true);
     assert.equal(toolNames.includes("validate_recipe"), true);
+    assert.equal(resourcesResult.resources.length, 4);
+    assert.equal(promptsResult.prompts.length, 2);
+  } finally {
+    await session.close();
+  }
+});
+
+test("mcp integration: resources and prompts are discoverable", async () => {
+  const session = await createMcpSession();
+
+  try {
+    const resourcesResult = await session.request("resources/list", {});
+
+    assert.equal(resourcesResult.resources.length, 4);
+    assert.deepEqual(
+      resourcesResult.resources.map((resource) => resource.uri),
+      [
+        "texture://docs/layer-reference",
+        "texture://docs/preset-playbook",
+        "texture://docs/recipe-examples",
+        "texture://docs/workflow-guardrails"
+      ]
+    );
+    assert.equal(resourcesResult.resources.every((resource) => resource.mimeType === "text/markdown"), true);
+
+    const templatesResult = await session.request("resources/templates/list", {});
+
+    assert.deepEqual(templatesResult.resourceTemplates, []);
+
+    for (const uri of resourcesResult.resources.map((resource) => resource.uri)) {
+      const readResult = await session.request("resources/read", { uri });
+
+      assert.equal(readResult.contents.length, 1);
+      assert.equal(readResult.contents[0].uri, uri);
+      assert.equal(readResult.contents[0].mimeType, "text/markdown");
+      assert.equal(typeof readResult.contents[0].text, "string");
+      assert.equal(readResult.contents[0].text.length > 40, true);
+    }
+
+    const promptsResult = await session.request("prompts/list", {});
+
+    assert.deepEqual(
+      promptsResult.prompts.map((prompt) => prompt.name),
+      ["recommended_preset_workflow", "recommended_recipe_workflow"]
+    );
+    assert.equal(promptsResult.prompts.every((prompt) => !prompt.arguments || prompt.arguments.length === 0), true);
+
+    const presetPromptResult = await session.request("prompts/get", {
+      name: "recommended_preset_workflow"
+    });
+    const recipePromptResult = await session.request("prompts/get", {
+      name: "recommended_recipe_workflow"
+    });
+
+    assert.equal(presetPromptResult.messages.length, 1);
+    assert.equal(presetPromptResult.messages[0].role, "user");
+    assert.match(presetPromptResult.messages[0].content.text, /list_presets/);
+    assert.match(presetPromptResult.messages[0].content.text, /texture:\/\/docs\/preset-playbook/);
+    assert.match(recipePromptResult.messages[0].content.text, /validate_recipe/);
+    assert.match(recipePromptResult.messages[0].content.text, /texture:\/\/docs\/layer-reference/);
   } finally {
     await session.close();
   }
@@ -257,9 +326,20 @@ test("mcp integration: placeholder info tools return structured results", async 
     assert.equal(presetsResult.structuredContent.count, 6);
     assert.equal(presetsResult.structuredContent.presets.length, 6);
     assert.match(presetsResult.content[0].text, /get_preset_schema/);
+    assert.match(presetsResult.content[0].text, /commonUses/);
     assert.deepEqual(
       presetsResult.structuredContent.presets.map((preset) => preset.name).sort(),
       ["beam", "colorRamp", "glow", "panel", "ring", "smoke"]
+    );
+    assert.deepEqual(
+      presetsResult.structuredContent.presets.find((preset) => preset.name === "beam").primaryParams,
+      ["orientation", "length", "thickness", "intensity"]
+    );
+    assert.equal(
+      presetsResult.structuredContent.presets.find((preset) => preset.name === "beam").commonUses.includes(
+        "energy beams"
+      ),
+      true
     );
 
     const schemaResult = await session.request("tools/call", {
@@ -281,7 +361,17 @@ test("mcp integration: placeholder info tools return structured results", async 
       "cornerRadius"
     ]);
     assert.equal(schemaResult.structuredContent.defaultParams.palette, "heat");
+    assert.equal(schemaResult.structuredContent.parameterSemantics.palette.includes("built-in color sequences"), true);
+    assert.deepEqual(schemaResult.structuredContent.primaryParams, [
+      "palette",
+      "orientation",
+      "thickness"
+    ]);
+    assert.equal(schemaResult.structuredContent.commonUses.includes("heatmaps"), true);
+    assert.equal(schemaResult.structuredContent.tuningNotes.length > 0, true);
+    assert.deepEqual(schemaResult.structuredContent.compilesToLayerTypes, ["gradientRect"]);
     assert.match(schemaResult.content[0].text, /defaultParams/);
+    assert.match(schemaResult.content[0].text, /parameterSemantics/);
     assert.match(schemaResult.content[0].text, /generate_texture/);
 
     const layerTypesResult = await session.request("tools/call", {
@@ -292,6 +382,15 @@ test("mcp integration: placeholder info tools return structured results", async 
     assert.notEqual(layerTypesResult.isError, true, session.getStderr());
     assert.equal(layerTypesResult.structuredContent.count, 8);
     assert.equal(layerTypesResult.structuredContent.layers.length, 8);
+    assert.match(layerTypesResult.content[0].text, /applicationScope/);
+    assert.deepEqual(
+      layerTypesResult.structuredContent.layers.find((layer) => layer.type === "blur").primaryParameters,
+      ["radius"]
+    );
+    assert.equal(
+      layerTypesResult.structuredContent.layers.find((layer) => layer.type === "blur").applicationScope,
+      "fullscreen"
+    );
     assert.match(layerTypesResult.content[0].text, /get_layer_schema/);
 
     const layerSchemaResult = await session.request("tools/call", {
@@ -305,6 +404,12 @@ test("mcp integration: placeholder info tools return structured results", async 
     assert.equal(layerSchemaResult.structuredContent.type, "text");
     assert.equal(layerSchemaResult.structuredContent.category, "draw");
     assert.equal(layerSchemaResult.structuredContent.mode, "recipe");
+    assert.deepEqual(layerSchemaResult.structuredContent.primaryParameters, [
+      "text",
+      "origin",
+      "size",
+      "color"
+    ]);
     assert.deepEqual(layerSchemaResult.structuredContent.parameterNames, [
       "text",
       "origin",
@@ -320,6 +425,8 @@ test("mcp integration: placeholder info tools return structured results", async 
     ]);
     assert.deepEqual(layerSchemaResult.structuredContent.constraintFields, ["text"]);
     assert.equal(layerSchemaResult.structuredContent.exampleCount, 1);
+    assert.equal(layerSchemaResult.structuredContent.applicationScope, "local");
+    assert.match(layerSchemaResult.content[0].text, /applicationScope/);
     assert.match(layerSchemaResult.content[0].text, /examples/);
 
     const validateResult = await session.request("tools/call", {
@@ -365,6 +472,30 @@ test("mcp integration: invalid calls return tool errors", async () => {
     assert.equal(unknownPresetResult.isError, true, session.getStderr());
     assert.match(unknownPresetResult.content[0].text, /Unknown preset/);
     assert.match(unknownPresetResult.content[0].text, /list_presets/);
+
+    await assert.rejects(
+      session.request("resources/read", {
+        uri: "texture://docs/missing"
+      }),
+      /Resource .* not found/
+    );
+
+    await assert.rejects(
+      session.request("prompts/get", {
+        name: "missing_prompt"
+      }),
+      /Prompt missing_prompt not found/
+    );
+
+    await assert.rejects(
+      session.request("prompts/get", {
+        name: "recommended_preset_workflow",
+        arguments: {
+          unexpected: "value"
+        }
+      }),
+      /does not accept arguments/
+    );
 
     const exportWithoutGenerateResult = await session.request("tools/call", {
       name: "export_texture",

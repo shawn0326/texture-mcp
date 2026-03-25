@@ -1,8 +1,19 @@
 #!/usr/bin/env node
 
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
-import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
+import {
+  CallToolRequestSchema,
+  ErrorCode,
+  GetPromptRequestSchema,
+  ListPromptsRequestSchema,
+  ListResourcesRequestSchema,
+  ListResourceTemplatesRequestSchema,
+  ListToolsRequestSchema,
+  McpError,
+  ReadResourceRequestSchema
+} from "@modelcontextprotocol/sdk/types.js";
 import { pathToFileURL } from "node:url";
+import { getWorkflowPrompt, listReferenceResources, listWorkflowPrompts, readReferenceResource } from "./discovery.js";
 import { createAppState } from "./state.js";
 import { CompatibleStdioServerTransport } from "./stdio-transport.js";
 import {
@@ -22,6 +33,13 @@ export function createMcpServer(): Server {
         logging: {},
         tools: {
           listChanged: false
+        },
+        resources: {
+          subscribe: false,
+          listChanged: false
+        },
+        prompts: {
+          listChanged: false
         }
       }
     }
@@ -34,6 +52,63 @@ export function createMcpServer(): Server {
   server.setRequestHandler(CallToolRequestSchema, async (request) =>
     executeTextureTool(tools, request.params.name, request.params.arguments)
   );
+  server.setRequestHandler(ListResourcesRequestSchema, async () => ({
+    resources: listReferenceResources()
+  }));
+  server.setRequestHandler(ListResourceTemplatesRequestSchema, async () => ({
+    resourceTemplates: []
+  }));
+  server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
+    const resource = readReferenceResource(request.params.uri);
+
+    if (!resource) {
+      throw new McpError(ErrorCode.InvalidParams, `Resource ${request.params.uri} not found`);
+    }
+
+    return {
+      contents: [
+        {
+          uri: resource.uri,
+          mimeType: resource.mimeType,
+          text: resource.text
+        }
+      ]
+    };
+  });
+  server.setRequestHandler(ListPromptsRequestSchema, async () => ({
+    prompts: listWorkflowPrompts()
+  }));
+  server.setRequestHandler(GetPromptRequestSchema, async (request) => {
+    try {
+      const prompt = getWorkflowPrompt(request.params.name, request.params.arguments);
+
+      if (!prompt) {
+        throw new McpError(ErrorCode.InvalidParams, `Prompt ${request.params.name} not found`);
+      }
+
+      return {
+        description: prompt.description,
+        messages: [
+          {
+            role: "user",
+            content: {
+              type: "text",
+              text: prompt.text
+            }
+          }
+        ]
+      };
+    } catch (error) {
+      if (error instanceof McpError) {
+        throw error;
+      }
+
+      throw new McpError(
+        ErrorCode.InvalidParams,
+        error instanceof Error ? error.message : String(error)
+      );
+    }
+  });
 
   return server;
 }

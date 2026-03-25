@@ -43,12 +43,32 @@ Current MCP tools:
 - `generate_texture`
 - `export_texture`
 
+Current MCP resources:
+
+- `texture://docs/layer-reference`
+- `texture://docs/preset-playbook`
+- `texture://docs/recipe-examples`
+- `texture://docs/workflow-guardrails`
+
+Current MCP prompts:
+
+- `recommended_preset_workflow`
+- `recommended_recipe_workflow`
+
 Notes:
 
 - The recipe DSL is intentionally small and flat.
 - `noise` and `blur` are full-canvas effect layers, not local shape modifiers.
 - `text` uses canvas font-family strings, so rendering may vary slightly across hosts depending on available fonts.
 - `export_texture` only writes to relative paths inside `workspaceRoot`.
+
+## Reference Docs
+
+For stable, separately linkable reference material, see:
+
+- [docs/layer-reference.md](docs/layer-reference.md)
+- [docs/preset-playbook.md](docs/preset-playbook.md)
+- [docs/recipe-examples.md](docs/recipe-examples.md)
 
 ## Quick Start
 
@@ -156,14 +176,36 @@ For AI callers, the recommended sequence is:
 Use presets when you want a fast semantic starting point.
 Use recipe mode when you need precise control over layer composition.
 
+The server also exposes runtime-generated MCP resources and prompts for these workflows, so callers can read reference material directly without depending on local `docs/*.md` files.
+
+## Resources And Prompts
+
+The server exposes stable, runtime-generated discovery content in addition to tools.
+
+Resources:
+
+- `texture://docs/layer-reference`
+- `texture://docs/preset-playbook`
+- `texture://docs/recipe-examples`
+- `texture://docs/workflow-guardrails`
+
+Prompts:
+
+- `recommended_preset_workflow`
+- `recommended_recipe_workflow`
+
+Resources are returned as `text/markdown` and are generated at runtime from the server's structured metadata and fixed example content. They do not depend on the repository `docs/` directory being present in the published package.
+
 ## Structured Output Highlights
 
 The tools return stable `structuredContent` intended for MCP callers.
 
 - `list_presets` returns `count` and `presets`.
-- `get_preset_schema` returns full preset schema metadata plus summary fields such as `mode`, `paramCount`, `paramNames`, `requiredParamNames`, and `defaultParamNames`.
+- `list_presets` preset items also include `primaryParams` and `commonUses` to help pick the best semantic starting point.
+- `get_preset_schema` returns full preset schema metadata plus summary fields such as `mode`, `paramCount`, `paramNames`, `requiredParamNames`, `defaultParamNames`, `parameterSemantics`, `commonUses`, `tuningNotes`, and `compilesToLayerTypes`.
 - `list_layer_types` returns `count` and `layers`.
-- `get_layer_schema` returns full layer semantics plus summary fields such as `mode`, `parameterNames`, `requiredParameterNames`, `constraintFields`, and `exampleCount`.
+- `list_layer_types` layer items also include `applicationScope`, `primaryParameters`, and `commonUses` to help choose between local draw layers and fullscreen effects.
+- `get_layer_schema` returns full layer semantics plus summary fields such as `mode`, `primaryParameters`, `parameterNames`, `requiredParameterNames`, `constraintFields`, `applicationScope`, and `exampleCount`.
 - `validate_recipe` returns `valid`, `errorCount`, `readyForGeneration`, `errors`, and when valid also `normalizedRecipe` and `stats`.
 - `generate_texture` returns `mode`, `width`, `height`, `preset`, `seed`, `usedDefaultSeed`, `recipeLayerCount`, and `currentResultAvailable`.
 - `export_texture` returns `savedPath`, `metaPath`, `width`, `height`, `format`, `sourceMode`, `preset`, `seed`, and `metaSaved`.
@@ -198,6 +240,11 @@ Inspect one preset:
 - `requiredParamNames`
 - `defaultParamNames`
 - `defaultParams`
+- `parameterSemantics`
+- `primaryParams`
+- `commonUses`
+- `tuningNotes`
+- `compilesToLayerTypes`
 
 Typical `beam` parameters:
 
@@ -235,9 +282,11 @@ Inspect one layer type:
 `get_layer_schema` also returns high-signal summary fields:
 
 - `mode`
+- `primaryParameters`
 - `parameterNames`
 - `requiredParameterNames`
 - `constraintFields`
+- `applicationScope`
 - `exampleCount`
 - `parameterSemantics`
 - `constraints`

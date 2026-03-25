@@ -277,7 +277,9 @@ export const exportTextureOutputSchema = z
 export const presetCatalogItemSchema = z
   .object({
     name: z.string().min(1),
-    description: z.string().min(1)
+    description: z.string().min(1),
+    primaryParams: z.array(z.string().min(1)),
+    commonUses: z.array(z.string().min(1))
   })
   .strict();
 
@@ -295,7 +297,10 @@ export const layerCatalogItemSchema = z
   .object({
     type: z.enum(["gradientCircle", "circle", "ring", "rect", "gradientRect", "noise", "blur", "text"]),
     category: z.enum(["draw", "effect"]),
-    description: z.string().min(1)
+    description: z.string().min(1),
+    primaryParameters: z.array(z.string().min(1)),
+    commonUses: z.array(z.string().min(1)),
+    applicationScope: z.enum(["local", "fullscreen"])
   })
   .strict();
 
@@ -328,6 +333,13 @@ export const getPresetSchemaOutputSchema = z
     requiredParamNames: z.array(z.string().min(1)),
     defaultParamNames: z.array(z.string().min(1)),
     defaultParams: paramsRecordSchema,
+    parameterSemantics: z.record(z.string(), z.string()),
+    primaryParams: z.array(z.string().min(1)),
+    commonUses: z.array(z.string().min(1)),
+    tuningNotes: z.array(z.string().min(1)),
+    compilesToLayerTypes: z.array(
+      z.enum(["gradientCircle", "circle", "ring", "rect", "gradientRect", "noise", "blur", "text"])
+    ),
     schema: jsonSchemaObjectSchema
   })
   .strict();
@@ -345,6 +357,7 @@ export const getLayerSchemaOutputSchema = z
     category: z.enum(["draw", "effect"]),
     description: z.string().min(1),
     mode: z.literal("recipe"),
+    primaryParameters: z.array(z.string().min(1)),
     parameterNames: z.array(z.string().min(1)),
     requiredParameterNames: z.array(z.string().min(1)),
     constraintFields: z.array(z.string().min(1)),
@@ -352,6 +365,7 @@ export const getLayerSchemaOutputSchema = z
     schema: jsonSchemaObjectSchema,
     parameterSemantics: z.record(z.string(), z.string()),
     constraints: z.array(layerSchemaConstraintSchema),
+    applicationScope: z.enum(["local", "fullscreen"]),
     coordinateSpace: z.string().min(1),
     commonUses: z.array(z.string().min(1)),
     compositionNotes: z.array(z.string().min(1)),

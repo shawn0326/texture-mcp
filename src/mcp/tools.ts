@@ -150,7 +150,7 @@ export function createTextureToolDefinitions(state: AppState): TextureToolDefini
         const layers: ListLayerTypesOutput["layers"] = listLayerCatalog();
 
         return createToolSuccess(
-          `Found ${layers.length} layer types: ${formatItemList(layers.map((layer) => layer.type))}. Call \`get_layer_schema\` for detailed semantics, constraints, and examples for a specific type.`,
+          `Found ${layers.length} layer types: ${formatItemList(layers.map((layer) => layer.type))}. Use each layer's \`applicationScope\`, \`primaryParameters\`, and \`commonUses\` to choose the closest fit, then call \`get_layer_schema\` for detailed semantics and examples.`,
           {
             count: layers.length,
             layers
@@ -176,7 +176,7 @@ export function createTextureToolDefinitions(state: AppState): TextureToolDefini
         }
 
         return createToolSuccess(
-          `Layer schema returned for \`${layerSchema.type}\`. Use \`parameterSemantics\`, \`constraints\`, \`compositionNotes\`, and \`examples\` to build or repair recipe-mode input.`,
+          `Layer schema returned for \`${layerSchema.type}\`. Use \`applicationScope\`, \`primaryParameters\`, \`parameterSemantics\`, \`constraints\`, \`compositionNotes\`, and \`examples\` to build or repair recipe-mode input.`,
           layerSchema
         );
       }
@@ -192,7 +192,7 @@ export function createTextureToolDefinitions(state: AppState): TextureToolDefini
         const presets: ListPresetsOutput["presets"] = listPresetCatalog();
 
         return createToolSuccess(
-          `Found ${presets.length} presets: ${formatItemList(presets.map((preset) => preset.name))}. Call \`get_preset_schema\` for valid params and defaults before using \`generate_texture\` in preset mode.`,
+          `Found ${presets.length} presets: ${formatItemList(presets.map((preset) => preset.name))}. Use each preset's \`commonUses\` and \`primaryParams\` to pick the closest match, then call \`get_preset_schema\` before using \`generate_texture\` in preset mode.`,
           {
             count: presets.length,
             presets
@@ -218,7 +218,7 @@ export function createTextureToolDefinitions(state: AppState): TextureToolDefini
         }
 
         return createToolSuccess(
-          `Preset schema returned for \`${presetDefinition.name}\`. Start from \`defaultParams\`, then override only the parameters you need before calling \`generate_texture\` in preset mode.`,
+          `Preset schema returned for \`${presetDefinition.name}\`. Start from \`defaultParams\`, use \`parameterSemantics\` and \`tuningNotes\` to adjust only the parameters you need before calling \`generate_texture\` in preset mode, and check \`compilesToLayerTypes\` if you may need to fall back to recipe mode.`,
           presetDefinition
         );
       }

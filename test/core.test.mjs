@@ -43,11 +43,14 @@ const { validateRecipe } = await import(
 
 test("core: listPresetCatalog returns the MVP preset catalog", () => {
   const presets = listPresetCatalog();
+  const beam = presets.find((preset) => preset.name === "beam");
 
   assert.deepEqual(
     presets.map((preset) => preset.name).sort(),
     ["beam", "colorRamp", "glow", "panel", "ring", "smoke"]
   );
+  assert.deepEqual(beam.primaryParams, ["orientation", "length", "thickness", "intensity"]);
+  assert.equal(beam.commonUses.includes("energy beams"), true);
 });
 
 test("core: getPresetSchemaInfo returns serializable schema info", () => {
@@ -79,16 +82,25 @@ test("core: getPresetSchemaInfo returns serializable schema info", () => {
     "cornerRadius"
   ]);
   assert.equal(preset.defaultParams.palette, "heat");
+  assert.equal(preset.parameterSemantics.palette.includes("built-in color sequences"), true);
+  assert.deepEqual(preset.primaryParams, ["palette", "orientation", "thickness"]);
+  assert.equal(preset.commonUses.includes("heatmaps"), true);
+  assert.equal(preset.tuningNotes.length > 0, true);
+  assert.deepEqual(preset.compilesToLayerTypes, ["gradientRect"]);
   assert.equal(preset.schema.type, "object");
 });
 
 test("core: listLayerCatalog returns the supported layer types", () => {
   const layers = listLayerCatalog();
+  const blur = layers.find((layer) => layer.type === "blur");
 
   assert.deepEqual(
     layers.map((layer) => layer.type).sort(),
     ["blur", "circle", "gradientCircle", "gradientRect", "noise", "rect", "ring", "text"]
   );
+  assert.deepEqual(blur.primaryParameters, ["radius"]);
+  assert.equal(blur.applicationScope, "fullscreen");
+  assert.equal(blur.commonUses.includes("glow bloom"), true);
 });
 
 test("core: getLayerSchemaInfo returns semantic schema info", () => {
@@ -98,6 +110,7 @@ test("core: getLayerSchemaInfo returns semantic schema info", () => {
   assert.equal(layer.type, "gradientRect");
   assert.equal(layer.category, "draw");
   assert.equal(layer.mode, "recipe");
+  assert.deepEqual(layer.primaryParameters, ["origin", "size", "direction", "colors"]);
   assert.deepEqual(layer.parameterNames, [
     "origin",
     "size",
@@ -113,6 +126,7 @@ test("core: getLayerSchemaInfo returns semantic schema info", () => {
   ]);
   assert.deepEqual(layer.constraintFields, ["direction", "colors"]);
   assert.equal(layer.exampleCount, 1);
+  assert.equal(layer.applicationScope, "local");
   assert.equal(layer.schema.type, "object");
   assert.equal(layer.examples.length > 0, true);
 });

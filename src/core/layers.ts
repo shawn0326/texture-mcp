@@ -43,6 +43,7 @@ const layerDefinitions: LayerDefinition[] = [
     category: "draw",
     description: "A radial gradient clipped to a circular shape.",
     schemaDefinition: gradientCircleLayerSchema,
+    primaryParameters: ["center", "radius", "colors"],
     parameterSemantics: {
       center: "Normalized center point of the circle in canvas space.",
       radius: "Normalized radius relative to the shorter canvas side.",
@@ -54,6 +55,7 @@ const layerDefinitions: LayerDefinition[] = [
         description: "At least two colors are required."
       }
     ],
+    applicationScope: "local",
     coordinateSpace: "Normalized canvas coordinates for `center`; radius is normalized to the shorter canvas side.",
     commonUses: ["soft glow cores", "orbs", "radial light blooms"],
     compositionNotes: [
@@ -74,12 +76,14 @@ const layerDefinitions: LayerDefinition[] = [
     category: "draw",
     description: "A solid filled circle.",
     schemaDefinition: circleLayerSchema,
+    primaryParameters: ["center", "radius", "color"],
     parameterSemantics: {
       center: "Normalized center point of the circle in canvas space.",
       radius: "Normalized radius relative to the shorter canvas side.",
       color: "CSS color string for the fill."
     },
     constraints: [],
+    applicationScope: "local",
     coordinateSpace: "Normalized canvas coordinates for `center`; radius is normalized to the shorter canvas side.",
     commonUses: ["solid cores", "masks", "disc silhouettes"],
     compositionNotes: [
@@ -99,6 +103,7 @@ const layerDefinitions: LayerDefinition[] = [
     category: "draw",
     description: "A hollow ring defined by inner and outer radii.",
     schemaDefinition: ringLayerSchema,
+    primaryParameters: ["center", "innerRadius", "outerRadius", "color"],
     parameterSemantics: {
       center: "Normalized center point of the ring in canvas space.",
       innerRadius: "Normalized inner radius relative to the shorter canvas side.",
@@ -111,6 +116,7 @@ const layerDefinitions: LayerDefinition[] = [
         description: "Must be greater than `innerRadius`."
       }
     ],
+    applicationScope: "local",
     coordinateSpace: "Normalized canvas coordinates for `center`; radii are normalized to the shorter canvas side.",
     commonUses: ["shields", "scan rings", "portals", "impact outlines"],
     compositionNotes: [
@@ -131,6 +137,7 @@ const layerDefinitions: LayerDefinition[] = [
     category: "draw",
     description: "A solid rectangle with optional rounded corners.",
     schemaDefinition: rectLayerSchema,
+    primaryParameters: ["origin", "size", "color"],
     parameterSemantics: {
       origin: "Normalized top-left corner of the rectangle.",
       size: "Normalized width and height of the rectangle.",
@@ -138,6 +145,7 @@ const layerDefinitions: LayerDefinition[] = [
       color: "CSS color string for the fill."
     },
     constraints: [],
+    applicationScope: "local",
     coordinateSpace: "Normalized canvas coordinates for `origin` and `size`.",
     commonUses: ["panels", "bars", "frames", "simple masks"],
     compositionNotes: [
@@ -158,6 +166,7 @@ const layerDefinitions: LayerDefinition[] = [
     category: "draw",
     description: "A rectangle filled with a simple horizontal or vertical linear gradient.",
     schemaDefinition: gradientRectLayerSchema,
+    primaryParameters: ["origin", "size", "direction", "colors"],
     parameterSemantics: {
       origin: "Normalized top-left corner of the rectangle.",
       size: "Normalized width and height of the rectangle.",
@@ -175,6 +184,7 @@ const layerDefinitions: LayerDefinition[] = [
         description: "At least two colors are required."
       }
     ],
+    applicationScope: "local",
     coordinateSpace: "Normalized canvas coordinates for `origin` and `size`.",
     commonUses: ["beams", "panels", "UI bars", "color ramps"],
     compositionNotes: [
@@ -196,6 +206,7 @@ const layerDefinitions: LayerDefinition[] = [
     category: "draw",
     description: "A single-line text label drawn inside a normalized layout box.",
     schemaDefinition: textLayerSchema,
+    primaryParameters: ["text", "origin", "size", "color"],
     parameterSemantics: {
       text: "Single-line text content to render.",
       origin: "Normalized top-left corner of the text layout box.",
@@ -215,6 +226,7 @@ const layerDefinitions: LayerDefinition[] = [
         description: "Must be a non-empty string up to 256 characters."
       }
     ],
+    applicationScope: "local",
     coordinateSpace: "Normalized canvas coordinates for `origin` and `size`; `fontSize` is normalized to canvas height.",
     commonUses: ["panel labels", "HUD text", "damage numbers", "simple UI titles"],
     compositionNotes: [
@@ -241,10 +253,12 @@ const layerDefinitions: LayerDefinition[] = [
     category: "effect",
     description: "A fullscreen noise pass applied to the current canvas result.",
     schemaDefinition: noiseLayerSchema,
+    primaryParameters: ["amount"],
     parameterSemantics: {
       amount: "Normalized intensity of the noise perturbation."
     },
     constraints: [],
+    applicationScope: "fullscreen",
     coordinateSpace: "Fullscreen effect; no local coordinates.",
     commonUses: ["grain", "breakup", "smoke texture variation"],
     compositionNotes: [
@@ -263,10 +277,12 @@ const layerDefinitions: LayerDefinition[] = [
     category: "effect",
     description: "A fullscreen blur pass applied to the current canvas result.",
     schemaDefinition: blurLayerSchema,
+    primaryParameters: ["radius"],
     parameterSemantics: {
       radius: "Normalized blur radius relative to the shorter canvas side."
     },
     constraints: [],
+    applicationScope: "fullscreen",
     coordinateSpace: "Fullscreen effect; no local coordinates.",
     commonUses: ["soft falloff", "glow bloom", "smoothing noise"],
     compositionNotes: [
@@ -283,11 +299,16 @@ const layerDefinitions: LayerDefinition[] = [
 ];
 
 export function listLayerCatalog(): LayerCatalogItem[] {
-  return layerDefinitions.map(({ type, category, description }) => ({
-    type,
-    category,
-    description
-  }));
+  return layerDefinitions.map(
+    ({ type, category, description, primaryParameters, commonUses, applicationScope }) => ({
+      type,
+      category,
+      description,
+      primaryParameters,
+      commonUses,
+      applicationScope
+    })
+  );
 }
 
 export function getLayerSchemaInfo(type: LayerSpec["type"]): LayerSchemaInfo | undefined {
@@ -307,6 +328,7 @@ export function getLayerSchemaInfo(type: LayerSpec["type"]): LayerSchemaInfo | u
     category: definition.category,
     description: definition.description,
     mode: "recipe",
+    primaryParameters: definition.primaryParameters,
     parameterNames,
     requiredParameterNames,
     constraintFields,
@@ -314,6 +336,7 @@ export function getLayerSchemaInfo(type: LayerSpec["type"]): LayerSchemaInfo | u
     schema,
     parameterSemantics: definition.parameterSemantics,
     constraints: definition.constraints,
+    applicationScope: definition.applicationScope,
     coordinateSpace: definition.coordinateSpace,
     commonUses: definition.commonUses,
     compositionNotes: definition.compositionNotes,

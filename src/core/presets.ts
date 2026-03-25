@@ -241,6 +241,17 @@ export const presetDefinitions: PresetDefinition[] = [
     description: "Soft center glow with a little grain.",
     schema: glowParamsSchema,
     defaultParams: { intensity: 0.8, falloff: 0.5 },
+    primaryParams: ["intensity", "falloff"],
+    parameterSemantics: {
+      intensity: "Controls core brightness and slightly increases the grain amount.",
+      falloff: "Controls how far the glow extends from the center."
+    },
+    commonUses: ["magic sparks", "pickup glows", "small light sprites"],
+    tuningNotes: [
+      "Increase `intensity` for a brighter core and slightly more grain.",
+      "Increase `falloff` for a wider and softer glow radius."
+    ],
+    compilesToLayerTypes: ["gradientCircle", "noise"],
     toRecipe: createGlowRecipe
   },
   {
@@ -248,6 +259,17 @@ export const presetDefinitions: PresetDefinition[] = [
     description: "Circular ring with optional softness.",
     schema: ringParamsSchema,
     defaultParams: { thickness: 0.2, softness: 0.1 },
+    primaryParams: ["thickness", "softness"],
+    parameterSemantics: {
+      thickness: "Controls the visible width of the ring band.",
+      softness: "Controls how much blur is applied after the ring is drawn."
+    },
+    commonUses: ["shield hits", "portal outlines", "scan circles"],
+    tuningNotes: [
+      "Increase `thickness` for a heavier and more graphic ring body.",
+      "Increase `softness` for a more diffuse and glowy edge."
+    ],
+    compilesToLayerTypes: ["ring", "blur"],
     toRecipe: createRingRecipe
   },
   {
@@ -255,6 +277,17 @@ export const presetDefinitions: PresetDefinition[] = [
     description: "Diffuse smoky texture with blur and noise.",
     schema: smokeParamsSchema,
     defaultParams: { density: 0.6, turbulence: 0.4 },
+    primaryParams: ["density", "turbulence"],
+    parameterSemantics: {
+      density: "Controls the strength of the noise pass and the size of the soft smoke body.",
+      turbulence: "Controls the blur radius used to soften and spread the noisy result."
+    },
+    commonUses: ["fog puffs", "smoke wisps", "ambient haze"],
+    tuningNotes: [
+      "Increase `density` for a fuller and grainier smoke body.",
+      "Increase `turbulence` for a softer, more diffused cloud."
+    ],
+    compilesToLayerTypes: ["noise", "blur", "circle"],
     toRecipe: createSmokeRecipe
   },
   {
@@ -262,6 +295,20 @@ export const presetDefinitions: PresetDefinition[] = [
     description: "Soft sci-fi panel block with a crisp gradient body and glow.",
     schema: panelParamsSchema,
     defaultParams: { width: 0.72, height: 0.32, cornerRadius: 0.05, glow: 0.35 },
+    primaryParams: ["width", "height", "glow"],
+    parameterSemantics: {
+      width: "Controls the normalized width of the main panel body.",
+      height: "Controls the normalized height of the main panel body.",
+      cornerRadius: "Controls the roundness of the panel and its outer glow shell.",
+      glow: "Controls the size and brightness of the outer soft glow block."
+    },
+    commonUses: ["sci-fi panels", "HUD cards", "UI blocks"],
+    tuningNotes: [
+      "Adjust `width` and `height` first to fit the intended layout aspect.",
+      "Increase `glow` when you want the panel to feel more emissive.",
+      "Use a moderate `cornerRadius` to keep the panel readable at small sizes."
+    ],
+    compilesToLayerTypes: ["rect", "blur", "gradientRect"],
     toRecipe: createPanelRecipe
   },
   {
@@ -269,6 +316,20 @@ export const presetDefinitions: PresetDefinition[] = [
     description: "Directional energy beam with a bright core and soft falloff.",
     schema: beamParamsSchema,
     defaultParams: { orientation: "horizontal", length: 0.85, thickness: 0.14, intensity: 0.85 },
+    primaryParams: ["orientation", "length", "thickness", "intensity"],
+    parameterSemantics: {
+      orientation: "Selects whether the beam spans horizontally or vertically.",
+      length: "Controls how much of the canvas the beam occupies along its main axis.",
+      thickness: "Controls the thickness of the soft body and the crisp core.",
+      intensity: "Controls center brightness and slightly increases blur strength."
+    },
+    commonUses: ["energy beams", "laser slashes", "scan lines"],
+    tuningNotes: [
+      "Use `orientation` to match the intended composition direction.",
+      "Increase `intensity` for a hotter core and stronger bloom feel.",
+      "Reduce `thickness` when you need a sharper slash-like beam."
+    ],
+    compilesToLayerTypes: ["gradientRect", "blur", "rect"],
     toRecipe: createBeamRecipe
   },
   {
@@ -282,6 +343,21 @@ export const presetDefinitions: PresetDefinition[] = [
       padding: 0.08,
       cornerRadius: 0.03
     },
+    primaryParams: ["palette", "orientation", "thickness"],
+    parameterSemantics: {
+      palette: "Selects one of the built-in color sequences.",
+      orientation: "Chooses whether the ramp runs horizontally or vertically.",
+      thickness: "Controls the thickness of the ramp band.",
+      padding: "Controls the empty margin around the ramp inside the canvas.",
+      cornerRadius: "Rounds the ends or corners of the ramp band."
+    },
+    commonUses: ["heatmaps", "shader ramps", "palette strips"],
+    tuningNotes: [
+      "Change `palette` first when you need a different visual meaning.",
+      "Use `padding` to keep the ramp away from texture edges.",
+      "Increase `thickness` for a chunkier ramp that reads better in previews."
+    ],
+    compilesToLayerTypes: ["gradientRect"],
     toRecipe: createColorRampRecipe
   }
 ];
@@ -311,9 +387,11 @@ function getObjectSchemaRequiredNames(schema: JsonSchemaObject): string[] {
 }
 
 export function listPresetCatalog(): PresetCatalogItem[] {
-  return presetDefinitions.map(({ name, description }) => ({
+  return presetDefinitions.map(({ name, description, primaryParams, commonUses }) => ({
     name,
-    description
+    description,
+    primaryParams,
+    commonUses
   }));
 }
 
@@ -342,6 +420,11 @@ export function getPresetSchemaInfo(name: string): PresetSchemaInfo | undefined 
     requiredParamNames,
     defaultParamNames,
     defaultParams: preset.defaultParams,
+    parameterSemantics: preset.parameterSemantics,
+    primaryParams: preset.primaryParams,
+    commonUses: preset.commonUses,
+    tuningNotes: preset.tuningNotes,
+    compilesToLayerTypes: preset.compilesToLayerTypes,
     schema
   };
 }

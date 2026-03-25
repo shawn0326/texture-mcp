@@ -127,12 +127,19 @@ export type PresetDefinition<TParams extends Record<string, unknown> = Record<st
   description: string;
   schema: ZodType<TParams>;
   defaultParams: TParams;
+  primaryParams: string[];
+  parameterSemantics: Record<string, string>;
+  commonUses: string[];
+  tuningNotes: string[];
+  compilesToLayerTypes: LayerSpec["type"][];
   toRecipe(params: TParams): Recipe;
 };
 
 export type PresetCatalogItem = {
   name: string;
   description: string;
+  primaryParams: string[];
+  commonUses: string[];
 };
 
 export type PresetSchemaInfo = {
@@ -144,15 +151,24 @@ export type PresetSchemaInfo = {
   requiredParamNames: string[];
   defaultParamNames: string[];
   defaultParams: Record<string, unknown>;
+  parameterSemantics: Record<string, string>;
+  primaryParams: string[];
+  commonUses: string[];
+  tuningNotes: string[];
+  compilesToLayerTypes: LayerSpec["type"][];
   schema: JsonSchemaObject;
 };
 
 export type LayerCategory = "draw" | "effect";
+export type LayerApplicationScope = "local" | "fullscreen";
 
 export type LayerCatalogItem = {
   type: LayerSpec["type"];
   category: LayerCategory;
   description: string;
+  primaryParameters: string[];
+  commonUses: string[];
+  applicationScope: LayerApplicationScope;
 };
 
 export type LayerSchemaConstraint = {
@@ -165,6 +181,7 @@ export type LayerSchemaInfo = {
   category: LayerCategory;
   description: string;
   mode: "recipe";
+  primaryParameters: string[];
   parameterNames: string[];
   requiredParameterNames: string[];
   constraintFields: string[];
@@ -172,6 +189,7 @@ export type LayerSchemaInfo = {
   schema: JsonSchemaObject;
   parameterSemantics: Record<string, string>;
   constraints: LayerSchemaConstraint[];
+  applicationScope: LayerApplicationScope;
   coordinateSpace: string;
   commonUses: string[];
   compositionNotes: string[];
