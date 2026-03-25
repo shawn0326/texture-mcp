@@ -2,6 +2,8 @@
 
 [![npm version](https://img.shields.io/npm/v/texture-mcp)](https://www.npmjs.com/package/texture-mcp)
 
+![](./screenshot.png)
+
 A procedural 2D VFX texture generator exposed via MCP, using presets and recipes to produce controllable and reproducible visual assets for AI workflows.
 
 ## What It Provides
