@@ -186,6 +186,121 @@ const demoCases = [
     }
   },
   {
+    section: "rotation-preview",
+    name: "rotated-slashed-bar",
+    description: "Simple rotated rect showing how slanted bar silhouettes work without adding a full transform system.",
+    outputPath: `${outputRoot}/rotation-preview/rotated-slashed-bar.png`,
+    input: {
+      mode: "recipe",
+      recipe: {
+        version: 1,
+        layers: [
+          {
+            type: "rect",
+            origin: { x: 0.18, y: 0.43 },
+            size: { width: 0.64, height: 0.12 },
+            cornerRadius: 0.04,
+            rotation: -22,
+            color: "rgba(215, 245, 255, 0.95)"
+          },
+          {
+            type: "blur",
+            radius: 0.01
+          }
+        ]
+      },
+      width: 320,
+      height: 160,
+      seed: 0
+    }
+  },
+  {
+    section: "rotation-preview",
+    name: "rotated-beam-ramp",
+    description: "Gradient rectangle with rotation, useful for angled beams, scan streaks, and slash-like energy strokes.",
+    outputPath: `${outputRoot}/rotation-preview/rotated-beam-ramp.png`,
+    input: {
+      mode: "recipe",
+      recipe: {
+        version: 1,
+        layers: [
+          {
+            type: "gradientRect",
+            origin: { x: 0.12, y: 0.4 },
+            size: { width: 0.76, height: 0.14 },
+            cornerRadius: 0.04,
+            rotation: -18,
+            direction: "horizontal",
+            colors: [
+              "rgba(0, 220, 255, 0)",
+              "rgba(110, 235, 255, 0.75)",
+              "rgba(255, 255, 255, 1)",
+              "rgba(110, 235, 255, 0.75)",
+              "rgba(0, 220, 255, 0)"
+            ]
+          },
+          {
+            type: "blur",
+            radius: 0.03
+          },
+          {
+            type: "rect",
+            origin: { x: 0.12, y: 0.455 },
+            size: { width: 0.76, height: 0.03 },
+            rotation: -18,
+            color: "rgba(255, 252, 245, 0.9)"
+          }
+        ]
+      },
+      width: 384,
+      height: 160,
+      seed: 0
+    }
+  },
+  {
+    section: "rotation-preview",
+    name: "rotated-alert-label",
+    description: "Tilted text label to show that the layout box and alignment rotate together around the box center.",
+    outputPath: `${outputRoot}/rotation-preview/rotated-alert-label.png`,
+    input: {
+      mode: "recipe",
+      recipe: {
+        version: 1,
+        layers: [
+          {
+            type: "gradientRect",
+            origin: { x: 0.18, y: 0.28 },
+            size: { width: 0.64, height: 0.24 },
+            cornerRadius: 0.05,
+            rotation: -10,
+            direction: "vertical",
+            colors: [
+              "rgba(205, 238, 255, 0.3)",
+              "rgba(44, 94, 158, 0.78)",
+              "rgba(12, 20, 36, 0.96)"
+            ]
+          },
+          {
+            type: "text",
+            text: "ALERT",
+            origin: { x: 0.24, y: 0.34 },
+            size: { width: 0.52, height: 0.1 },
+            rotation: -10,
+            color: "rgba(255, 255, 255, 1)",
+            fontFamily: "sans-serif",
+            fontWeight: "bold",
+            align: "center",
+            verticalAlign: "middle",
+            clip: true
+          }
+        ]
+      },
+      width: 384,
+      height: 192,
+      seed: 0
+    }
+  },
+  {
     section: "seed-variations",
     name: "smoke-seed-0",
     description: "Smoke variation with seed 0.",
@@ -263,6 +378,7 @@ function groupBySection(items) {
   return {
     "preset-gallery": items.filter((item) => item.section === "preset-gallery"),
     "parameter-sweep": items.filter((item) => item.section === "parameter-sweep"),
+    "rotation-preview": items.filter((item) => item.section === "rotation-preview"),
     "seed-variations": items.filter((item) => item.section === "seed-variations")
   };
 }
@@ -272,6 +388,7 @@ function renderHtml(items) {
   const titles = {
     "preset-gallery": "Preset Gallery",
     "parameter-sweep": "Parameter Sweep",
+    "rotation-preview": "Rotation Preview",
     "seed-variations": "Seed Variations"
   };
 
@@ -386,6 +503,7 @@ function renderMarkdown(items) {
   const titles = {
     "preset-gallery": "Preset Gallery",
     "parameter-sweep": "Parameter Sweep",
+    "rotation-preview": "Rotation Preview",
     "seed-variations": "Seed Variations"
   };
 

@@ -26,6 +26,7 @@
 
 ## P3 产品增强
 
+- [x] 为 `rect`、`gradientRect`、`text` 增加最小版 `rotation` 能力，统一按各自包围盒中心旋转，不扩展为完整 transform 系统。
 - [ ] 评估为 `generate_texture` 增加可选返回项，例如 `includeResolvedRecipe`，仅在显式请求时于 `preset` 模式下回传编译后的 recipe；默认不要回传整份 recipe。
 - [ ] 如后续发现“只获取 preset 编译结果、不需要渲染”的需求稳定存在，评估是否拆分独立的 compile / resolve 类能力，而不是持续加重 `generate_texture`。
 - [ ] 评估补充更丰富的内置 preset，但继续优先选择高语义、可复用、可稳定映射到当前 DSL 的效果。
@@ -43,3 +44,4 @@
 - [ ] 视需要补充 golden image / snapshot 测试，用于 renderer 回归比较。
 - [ ] 如需对外展示，可补一个会保留产物的 demo 脚本或示例命令。
 - [x] 补一个批量导出 preset gallery / 参数 sweep / seed variations 的演示脚本，服务快速 demo 与回归观察。
+- [x] 在 demo gallery 中补充 `rotation` 相关示意图，便于快速确认图元旋转不是字段摆设。

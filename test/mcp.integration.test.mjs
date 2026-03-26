@@ -469,6 +469,7 @@ test("mcp integration: placeholder info tools return structured results", async 
       "text",
       "origin",
       "size",
+      "rotation",
       "color",
       "fontFamily",
       "fontSize",
@@ -481,6 +482,10 @@ test("mcp integration: placeholder info tools return structured results", async 
     assert.deepEqual(layerSchemaResult.structuredContent.constraintFields, ["text"]);
     assert.equal(layerSchemaResult.structuredContent.exampleCount, 1);
     assert.equal(layerSchemaResult.structuredContent.applicationScope, "local");
+    assert.equal(
+      layerSchemaResult.structuredContent.parameterSemantics.rotation.includes("degrees"),
+      true
+    );
     assert.match(layerSchemaResult.content[0].text, /applicationScope/);
     assert.match(layerSchemaResult.content[0].text, /examples/);
 

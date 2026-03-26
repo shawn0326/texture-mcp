@@ -151,6 +151,7 @@ Use this when you need a bright beam with a blurred body and a crisp core.
           "origin": { "x": 0.14, "y": 0.28 },
           "size": { "width": 0.72, "height": 0.26 },
           "cornerRadius": 0.04,
+          "rotation": -6,
           "color": "rgba(60, 180, 255, 0.18)"
         },
         {
@@ -162,6 +163,7 @@ Use this when you need a bright beam with a blurred body and a crisp core.
           "origin": { "x": 0.16, "y": 0.3 },
           "size": { "width": 0.68, "height": 0.22 },
           "cornerRadius": 0.03,
+          "rotation": -6,
           "direction": "vertical",
           "colors": [
             "rgba(200, 240, 255, 0.28)",
@@ -174,6 +176,7 @@ Use this when you need a bright beam with a blurred body and a crisp core.
           "text": "ALERT",
           "origin": { "x": 0.2, "y": 0.35 },
           "size": { "width": 0.6, "height": 0.1 },
+          "rotation": -6,
           "color": "rgba(255,255,255,1)",
           "fontFamily": "sans-serif",
           "fontWeight": "bold",

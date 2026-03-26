@@ -20,13 +20,15 @@ export type { RecipeStats } from "./recipe-analysis.js";
 function normalizeCornerRadius<T extends RectLayer | GradientRectLayer>(layer: T): T {
   return {
     ...layer,
-    cornerRadius: layer.cornerRadius ?? 0
+    cornerRadius: layer.cornerRadius ?? 0,
+    rotation: layer.rotation ?? 0
   };
 }
 
 function normalizeTextLayer(layer: TextLayer): LayerSpec {
   return {
     ...layer,
+    rotation: layer.rotation ?? 0,
     fontFamily: layer.fontFamily ?? "sans-serif",
     fontWeight: layer.fontWeight ?? "normal",
     fontStyle: layer.fontStyle ?? "normal",

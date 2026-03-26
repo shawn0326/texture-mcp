@@ -25,6 +25,15 @@ export type RenderOutputOptions = {
 };
 
 type RandomSource = () => number;
+type RectGeometry = {
+  x: number;
+  y: number;
+  rectWidth: number;
+  rectHeight: number;
+  radius: number;
+  centerX: number;
+  centerY: number;
+};
 
 function clampByte(value: number): number {
   return Math.max(0, Math.min(255, Math.round(value)));
@@ -38,6 +47,10 @@ function toCanvasRadius(value: number, width: number, height: number): number {
   return value * Math.min(width, height);
 }
 
+function toRadians(value: number): number {
+  return (value * Math.PI) / 180;
+}
+
 function createSeededRandom(seed: number): RandomSource {
   let state = seed >>> 0;
 
@@ -49,17 +62,11 @@ function createSeededRandom(seed: number): RandomSource {
   };
 }
 
-function createRectPath(
-  context: SKRSContext2D,
+function getRectGeometry(
   layer: RectLayer | GradientRectLayer,
   width: number,
   height: number
-): {
-  x: number;
-  y: number;
-  rectWidth: number;
-  rectHeight: number;
-} {
+): RectGeometry {
   const x = toCanvasPoint(layer.origin.x, width);
   const y = toCanvasPoint(layer.origin.y, height);
   const rectWidth = toCanvasPoint(layer.size.width, width);
@@ -70,11 +77,29 @@ function createRectPath(
     rectHeight / 2
   );
 
-  context.beginPath();
+  return {
+    x,
+    y,
+    rectWidth,
+    rectHeight,
+    radius,
+    centerX: x + rectWidth / 2,
+    centerY: y + rectHeight / 2
+  };
+}
 
+function createRectPath(
+  context: SKRSContext2D,
+  x: number,
+  y: number,
+  rectWidth: number,
+  rectHeight: number,
+  radius: number
+): void {
+  context.beginPath();
   if (radius <= 0) {
     context.rect(x, y, rectWidth, rectHeight);
-    return { x, y, rectWidth, rectHeight };
+    return;
   }
 
   context.moveTo(x + radius, y);
@@ -87,8 +112,6 @@ function createRectPath(
   context.lineTo(x, y + radius);
   context.arcTo(x, y, x + radius, y, radius);
   context.closePath();
-
-  return { x, y, rectWidth, rectHeight };
 }
 
 function applyGradientCircle(
@@ -162,8 +185,20 @@ function applyRect(
   width: number,
   height: number
 ): void {
+  const geometry = getRectGeometry(layer, width, height);
+  const rotation = toRadians(layer.rotation ?? 0);
+
   context.save();
-  createRectPath(context, layer, width, height);
+  context.translate(geometry.centerX, geometry.centerY);
+  context.rotate(rotation);
+  createRectPath(
+    context,
+    -geometry.rectWidth / 2,
+    -geometry.rectHeight / 2,
+    geometry.rectWidth,
+    geometry.rectHeight,
+    geometry.radius
+  );
   context.fillStyle = layer.color;
   context.fill();
   context.restore();
@@ -175,12 +210,34 @@ function applyGradientRect(
   width: number,
   height: number
 ): void {
+  const geometry = getRectGeometry(layer, width, height);
+  const rotation = toRadians(layer.rotation ?? 0);
+
   context.save();
-  const { x, y, rectWidth, rectHeight } = createRectPath(context, layer, width, height);
+  context.translate(geometry.centerX, geometry.centerY);
+  context.rotate(rotation);
+  createRectPath(
+    context,
+    -geometry.rectWidth / 2,
+    -geometry.rectHeight / 2,
+    geometry.rectWidth,
+    geometry.rectHeight,
+    geometry.radius
+  );
   const gradient =
     layer.direction === "horizontal"
-      ? context.createLinearGradient(x, y, x + rectWidth, y)
-      : context.createLinearGradient(x, y, x, y + rectHeight);
+      ? context.createLinearGradient(
+          -geometry.rectWidth / 2,
+          -geometry.rectHeight / 2,
+          geometry.rectWidth / 2,
+          -geometry.rectHeight / 2
+        )
+      : context.createLinearGradient(
+          -geometry.rectWidth / 2,
+          -geometry.rectHeight / 2,
+          -geometry.rectWidth / 2,
+          geometry.rectHeight / 2
+        );
 
   layer.colors.forEach((color, index) => {
     const stop = layer.colors.length === 1 ? 1 : index / (layer.colors.length - 1);
@@ -202,18 +259,25 @@ function applyText(
   const boxY = toCanvasPoint(layer.origin.y, height);
   const boxWidth = toCanvasPoint(layer.size.width, width);
   const boxHeight = toCanvasPoint(layer.size.height, height);
+  const centerX = boxX + boxWidth / 2;
+  const centerY = boxY + boxHeight / 2;
+  const localBoxX = -boxWidth / 2;
+  const localBoxY = -boxHeight / 2;
   const fontSize = Math.max(1, toCanvasPoint(layer.fontSize ?? layer.size.height * 0.8, height));
   const align = layer.align ?? "center";
   const verticalAlign = layer.verticalAlign ?? "middle";
   const fontStyle = layer.fontStyle ?? "normal";
   const fontWeight = layer.fontWeight ?? "normal";
   const fontFamily = layer.fontFamily ?? "sans-serif";
+  const rotation = toRadians(layer.rotation ?? 0);
 
   context.save();
+  context.translate(centerX, centerY);
+  context.rotate(rotation);
 
   if (layer.clip) {
     context.beginPath();
-    context.rect(boxX, boxY, boxWidth, boxHeight);
+    context.rect(localBoxX, localBoxY, boxWidth, boxHeight);
     context.clip();
   }
 
@@ -228,16 +292,16 @@ function applyText(
 
   const textX =
     align === "left"
-      ? boxX
+      ? localBoxX
       : align === "right"
-        ? boxX + boxWidth
-        : boxX + boxWidth / 2;
+        ? localBoxX + boxWidth
+        : 0;
   const baselineY =
     verticalAlign === "top"
-      ? boxY + ascent
+      ? localBoxY + ascent
       : verticalAlign === "bottom"
-        ? boxY + boxHeight - descent
-        : boxY + boxHeight / 2 + (ascent - descent) / 2;
+        ? localBoxY + boxHeight - descent
+        : (ascent - descent) / 2;
 
   context.fillText(layer.text, textX, baselineY);
   context.restore();

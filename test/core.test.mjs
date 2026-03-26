@@ -125,6 +125,7 @@ test("core: getLayerSchemaInfo returns semantic schema info", () => {
     "origin",
     "size",
     "cornerRadius",
+    "rotation",
     "direction",
     "colors"
   ]);
@@ -177,6 +178,7 @@ test("core: createRecipe normalizes rect cornerRadius defaults", () => {
   ]);
 
   assert.equal(recipe.layers[0].cornerRadius, 0);
+  assert.equal(recipe.layers[0].rotation, 0);
 });
 
 test("core: createRecipe normalizes text layout defaults", () => {
@@ -192,6 +194,7 @@ test("core: createRecipe normalizes text layout defaults", () => {
   const textLayer = recipe.layers[0];
 
   assert.equal(textLayer.type, "text");
+  assert.equal(textLayer.rotation, 0);
   assert.equal(textLayer.fontFamily, "sans-serif");
   assert.equal(textLayer.fontWeight, "normal");
   assert.equal(textLayer.fontStyle, "normal");
@@ -239,6 +242,22 @@ test("core: validateRecipe returns readable errors for invalid input", () => {
   assert.equal(result.readyForGeneration, false);
   assert.equal(result.errors.length > 0, true);
   assert.match(result.errors[0].path, /^\$/);
+});
+
+test("core: createRecipe rejects unsupported rotation fields on non-rotatable layers", () => {
+  assert.throws(
+    () =>
+      createRecipe([
+        {
+          type: "circle",
+          center: { x: 0.5, y: 0.5 },
+          radius: 0.2,
+          rotation: 30,
+          color: "#ffffff"
+        }
+      ]),
+    /unrecognized key|invalid input/i
+  );
 });
 
 test("core: createEmptyRecipe returns an empty valid recipe", () => {
@@ -401,6 +420,45 @@ test("core: pixel test for rounded rect keeps corners transparent", () => {
   assert.equal(readPixel(canvas, 32, 32).g, 255);
 });
 
+test("core: rotated rect changes its footprint around the layer center", () => {
+  const horizontalRect = renderRecipeToCanvas(
+    createRecipe([
+      {
+        type: "rect",
+        origin: { x: 0.2, y: 0.4375 },
+        size: { width: 0.6, height: 0.125 },
+        color: "rgba(255, 255, 255, 1)"
+      }
+    ]),
+    {
+      width: 64,
+      height: 64,
+      seed: 1
+    }
+  );
+  const rotatedRect = renderRecipeToCanvas(
+    createRecipe([
+      {
+        type: "rect",
+        origin: { x: 0.2, y: 0.4375 },
+        size: { width: 0.6, height: 0.125 },
+        rotation: 90,
+        color: "rgba(255, 255, 255, 1)"
+      }
+    ]),
+    {
+      width: 64,
+      height: 64,
+      seed: 1
+    }
+  );
+
+  assert.equal(readPixel(horizontalRect, 32, 20).a, 0);
+  assert.equal(readPixel(horizontalRect, 16, 32).a > 0, true);
+  assert.equal(readPixel(rotatedRect, 32, 20).a > 0, true);
+  assert.equal(readPixel(rotatedRect, 16, 32).a, 0);
+});
+
 test("core: pixel test for gradientRect follows its direction", () => {
   const recipe = createRecipe([
     {
@@ -445,6 +503,32 @@ test("core: pixel test for vertical gradientRect follows top-to-bottom colors", 
   assert.equal(bottomPixel.b > topPixel.b, true);
 });
 
+test("core: rotated gradientRect rotates the gradient with the layer", () => {
+  const canvas = renderRecipeToCanvas(
+    createRecipe([
+      {
+        type: "gradientRect",
+        origin: { x: 0.2, y: 0.4375 },
+        size: { width: 0.6, height: 0.125 },
+        rotation: 90,
+        direction: "horizontal",
+        colors: ["rgba(255, 0, 0, 1)", "rgba(0, 0, 255, 1)"]
+      }
+    ]),
+    {
+      width: 64,
+      height: 64,
+      seed: 1
+    }
+  );
+  const topPixel = readPixel(canvas, 32, 16);
+  const bottomPixel = readPixel(canvas, 32, 48);
+
+  assert.equal(topPixel.a > 0, true);
+  assert.equal(bottomPixel.a > 0, true);
+  assert.notDeepEqual(topPixel, bottomPixel);
+});
+
 test("core: text renders inside its layout box", () => {
   const recipe = createRecipe([
     {
@@ -466,6 +550,31 @@ test("core: text renders inside its layout box", () => {
   assert.equal(countOpaquePixels(canvas, 38, 25, 180, 40) > 0, true);
   assert.equal(countOpaquePixels(canvas, 0, 0, 256, 12), 0);
   assert.equal(countOpaquePixels(canvas, 0, 100, 256, 28), 0);
+});
+
+test("core: rotated text still renders around its layout center", () => {
+  const canvas = renderRecipeToCanvas(
+    createRecipe([
+      {
+        type: "text",
+        text: "WARN",
+        origin: { x: 0.2, y: 0.25 },
+        size: { width: 0.6, height: 0.22 },
+        rotation: -18,
+        color: "rgba(255, 255, 255, 1)",
+        fontFamily: "sans-serif",
+        fontWeight: "bold"
+      }
+    ]),
+    {
+      width: 256,
+      height: 128,
+      seed: 1
+    }
+  );
+
+  assert.equal(countOpaquePixels(canvas, 52, 24, 152, 48) > 0, true);
+  assert.equal(countOpaquePixels(canvas, 0, 0, 256, 8), 0);
 });
 
 test("core: noise lifts alpha across the current canvas", () => {

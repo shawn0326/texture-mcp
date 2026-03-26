@@ -142,6 +142,7 @@ const layerDefinitions: LayerDefinition[] = [
       origin: "Normalized top-left corner of the rectangle.",
       size: "Normalized width and height of the rectangle.",
       cornerRadius: "Optional normalized corner radius relative to the shorter side of the rectangle.",
+      rotation: "Optional clockwise rotation in degrees around the rectangle's own center.",
       color: "CSS color string for the fill."
     },
     constraints: [],
@@ -149,7 +150,8 @@ const layerDefinitions: LayerDefinition[] = [
     coordinateSpace: "Normalized canvas coordinates for `origin` and `size`.",
     commonUses: ["panels", "bars", "frames", "simple masks"],
     compositionNotes: [
-      "Rounded corners are applied per rectangle, not as a separate shape type."
+      "Rounded corners are applied per rectangle, not as a separate shape type.",
+      "Use `rotation` for slanted bars, slash-like shapes, or tilted UI blocks."
     ],
     examples: [
       {
@@ -157,6 +159,7 @@ const layerDefinitions: LayerDefinition[] = [
         origin: { x: 0.18, y: 0.32 },
         size: { width: 0.64, height: 0.24 },
         cornerRadius: 0.04,
+        rotation: -12,
         color: "rgba(24,64,120,0.9)"
       }
     ]
@@ -171,6 +174,7 @@ const layerDefinitions: LayerDefinition[] = [
       origin: "Normalized top-left corner of the rectangle.",
       size: "Normalized width and height of the rectangle.",
       cornerRadius: "Optional normalized corner radius relative to the shorter side of the rectangle.",
+      rotation: "Optional clockwise rotation in degrees around the rectangle's own center.",
       direction: "Gradient direction, limited to horizontal or vertical.",
       colors: "Gradient colors distributed evenly along the chosen direction."
     },
@@ -188,7 +192,8 @@ const layerDefinitions: LayerDefinition[] = [
     coordinateSpace: "Normalized canvas coordinates for `origin` and `size`.",
     commonUses: ["beams", "panels", "UI bars", "color ramps"],
     compositionNotes: [
-      "Use `horizontal` for left-to-right ramps and `vertical` for top-to-bottom ramps."
+      "Use `horizontal` for left-to-right ramps and `vertical` for top-to-bottom ramps.",
+      "When `rotation` is present, the rectangle and its gradient rotate together around the box center."
     ],
     examples: [
       {
@@ -196,6 +201,7 @@ const layerDefinitions: LayerDefinition[] = [
         origin: { x: 0.1, y: 0.42 },
         size: { width: 0.8, height: 0.16 },
         cornerRadius: 0.03,
+        rotation: -18,
         direction: "horizontal",
         colors: ["#0018ff", "#00e4ff", "#fff200", "#ff3a00"]
       }
@@ -211,6 +217,7 @@ const layerDefinitions: LayerDefinition[] = [
       text: "Single-line text content to render.",
       origin: "Normalized top-left corner of the text layout box.",
       size: "Normalized width and height of the text layout box.",
+      rotation: "Optional clockwise rotation in degrees around the text layout box center.",
       color: "CSS color string used for the text fill.",
       fontFamily: "Canvas/CSS font family string. Rendering may vary across hosts based on available fonts.",
       fontSize: "Optional normalized font size relative to canvas height. Defaults to roughly 80% of the box height.",
@@ -231,7 +238,8 @@ const layerDefinitions: LayerDefinition[] = [
     commonUses: ["panel labels", "HUD text", "damage numbers", "simple UI titles"],
     compositionNotes: [
       "Use multiple `text` layers with different colors and offsets if you want faux outlines or shadows.",
-      "Place `blur` after text layers if you want the whole text result softened or bloomed."
+      "Place `blur` after text layers if you want the whole text result softened or bloomed.",
+      "Use `rotation` for tilted warning labels or angled HUD callouts."
     ],
     examples: [
       {
@@ -239,6 +247,7 @@ const layerDefinitions: LayerDefinition[] = [
         text: "ALERT",
         origin: { x: 0.16, y: 0.32 },
         size: { width: 0.68, height: 0.2 },
+        rotation: -10,
         color: "rgba(255,255,255,1)",
         fontFamily: "sans-serif",
         fontWeight: "bold",

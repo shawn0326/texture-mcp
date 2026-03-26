@@ -15,6 +15,7 @@
   - `text`
   - `noise`
   - `blur`
+- 当前 `rect`、`gradientRect`、`text` 已支持可选 `rotation`，其余 layer 仍保持无旋转的简单语义。
 - 当前已实现的内置 presets：
   - `flare`
   - `glow`

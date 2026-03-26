@@ -21,6 +21,7 @@ export const size2DSchema = z
   })
   .strict();
 export const cornerRadiusSchema = z.number().min(0).max(0.5);
+export const rotationDegreesSchema = z.number();
 const textureDimensionSchema = z
   .number()
   .int()
@@ -117,6 +118,7 @@ export const rectLayerSchema = z
     origin: xySchema,
     size: size2DSchema,
     cornerRadius: cornerRadiusSchema.optional(),
+    rotation: rotationDegreesSchema.optional(),
     color: cssColorSchema
   })
   .strict();
@@ -127,6 +129,7 @@ export const gradientRectLayerSchema = z
     origin: xySchema,
     size: size2DSchema,
     cornerRadius: cornerRadiusSchema.optional(),
+    rotation: rotationDegreesSchema.optional(),
     direction: z.enum(["horizontal", "vertical"]),
     colors: z.array(cssColorSchema).min(2)
   })
@@ -152,6 +155,7 @@ export const textLayerSchema = z
     text: z.string().min(1).max(256),
     origin: xySchema,
     size: size2DSchema,
+    rotation: rotationDegreesSchema.optional(),
     color: cssColorSchema,
     fontFamily: z.string().min(1).max(128).optional(),
     fontSize: z.number().positive().max(1).optional(),

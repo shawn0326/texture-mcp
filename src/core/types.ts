@@ -43,6 +43,7 @@ export type RectLayer = {
   origin: XY;
   size: Size2D;
   cornerRadius?: number;
+  rotation?: number;
   color: string;
 };
 
@@ -53,6 +54,7 @@ export type GradientRectLayer = {
   origin: XY;
   size: Size2D;
   cornerRadius?: number;
+  rotation?: number;
   direction: GradientRectDirection;
   colors: string[];
 };
@@ -80,6 +82,7 @@ export type TextLayer = {
   text: string;
   origin: XY;
   size: Size2D;
+  rotation?: number;
   color: string;
   fontFamily?: string;
   fontSize?: number;

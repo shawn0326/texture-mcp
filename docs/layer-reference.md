@@ -94,10 +94,11 @@ Hollow ring defined by inner and outer radii.
 Solid rectangle with optional rounded corners.
 
 - Required: `origin`, `size`, `color`
-- Optional: `cornerRadius`
+- Optional: `cornerRadius`, `rotation`
 - Notes:
   - `origin` is the normalized top-left corner
   - Rounded corners are built into this layer type
+  - `rotation` rotates the rectangle around its own box center in degrees
   - Good for panel bodies, bars, frames, and mask-like blocks
 
 ```json
@@ -106,6 +107,7 @@ Solid rectangle with optional rounded corners.
   "origin": { "x": 0.18, "y": 0.32 },
   "size": { "width": 0.64, "height": 0.24 },
   "cornerRadius": 0.04,
+  "rotation": -12,
   "color": "rgba(24,64,120,0.9)"
 }
 ```
@@ -115,13 +117,14 @@ Solid rectangle with optional rounded corners.
 Rectangle filled with a horizontal or vertical gradient.
 
 - Required: `origin`, `size`, `direction`, `colors`
-- Optional: `cornerRadius`
+- Optional: `cornerRadius`, `rotation`
 - Constraints:
   - `direction` must be `horizontal` or `vertical`
   - `colors` must contain at least two colors
 - Notes:
   - Use `horizontal` for left-to-right ramps
   - Use `vertical` for top-to-bottom ramps
+  - `rotation` rotates both the box and its gradient around the box center
   - Strong default choice for beams and color ramps
 
 ```json
@@ -130,6 +133,7 @@ Rectangle filled with a horizontal or vertical gradient.
   "origin": { "x": 0.1, "y": 0.42 },
   "size": { "width": 0.8, "height": 0.16 },
   "cornerRadius": 0.03,
+  "rotation": -18,
   "direction": "horizontal",
   "colors": ["#0018ff", "#00e4ff", "#fff200", "#ff3a00"]
 }
@@ -148,10 +152,12 @@ Single-line text drawn inside a normalized layout box.
   - `align`
   - `verticalAlign`
   - `clip`
+  - `rotation`
 - Constraints: `text` must be non-empty and at most 256 characters
 - Notes:
   - Rendering may vary by host because font availability is host-dependent
   - Use multiple `text` layers with offsets for simple shadow or outline tricks
+  - `rotation` rotates the whole layout box around its center in degrees
   - Put `blur` after text only if you want the whole text result softened
 
 ```json
@@ -160,6 +166,7 @@ Single-line text drawn inside a normalized layout box.
   "text": "ALERT",
   "origin": { "x": 0.16, "y": 0.32 },
   "size": { "width": 0.68, "height": 0.2 },
+  "rotation": -10,
   "color": "rgba(255,255,255,1)",
   "fontFamily": "sans-serif",
   "fontWeight": "bold",
