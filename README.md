@@ -137,6 +137,7 @@ Once connected, the simplest user flow is:
 
 Use `preset` mode when you want the fastest path to a useful result.
 Use `recipe` mode when you want direct control over layer composition.
+`generate_texture` validates the selected mode strictly and rejects mixed preset/recipe input in the same call.
 
 ## Local Development
 
@@ -204,7 +205,7 @@ The tools return stable `structuredContent` intended for MCP callers.
 
 - `list_presets` returns `count` and `presets`.
 - `list_presets` preset items also include `primaryParams` and `commonUses` to help pick the best semantic starting point.
-- `get_preset_schema` returns full preset schema metadata plus summary fields such as `mode`, `paramCount`, `paramNames`, `requiredParamNames`, `defaultParamNames`, `parameterSemantics`, `commonUses`, `tuningNotes`, and `compilesToLayerTypes`.
+- `get_preset_schema` returns full preset schema metadata plus summary fields such as `mode`, `paramCount`, `paramNames`, `requiredParamNames`, `schemaRequiredParamNames`, `defaultParamNames`, `parameterSemantics`, `commonUses`, `tuningNotes`, and `compilesToLayerTypes`.
 - `list_layer_types` returns `count` and `layers`.
 - `list_layer_types` layer items also include `applicationScope`, `primaryParameters`, and `commonUses` to help choose between local draw layers and fullscreen effects.
 - `get_layer_schema` returns full layer semantics plus summary fields such as `mode`, `primaryParameters`, `parameterNames`, `requiredParameterNames`, `constraintFields`, `applicationScope`, and `exampleCount`.
@@ -240,6 +241,7 @@ Inspect one preset:
 - `paramCount`
 - `paramNames`
 - `requiredParamNames`
+- `schemaRequiredParamNames`
 - `defaultParamNames`
 - `defaultParams`
 - `parameterSemantics`
@@ -247,6 +249,9 @@ Inspect one preset:
 - `commonUses`
 - `tuningNotes`
 - `compilesToLayerTypes`
+
+`requiredParamNames` reflects what the caller must still provide explicitly after preset defaults are applied.
+`schemaRequiredParamNames` reflects the raw underlying schema before defaults are merged.
 
 Typical `beam` parameters:
 

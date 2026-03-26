@@ -149,6 +149,7 @@ export type PresetSchemaInfo = {
   paramCount: number;
   paramNames: string[];
   requiredParamNames: string[];
+  schemaRequiredParamNames: string[];
   defaultParamNames: string[];
   defaultParams: Record<string, unknown>;
   parameterSemantics: Record<string, string>;

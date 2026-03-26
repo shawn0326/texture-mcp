@@ -205,36 +205,33 @@ export const metaSchema = z
   })
   .strict();
 
-export const generateTextureInputSchema = z
+const generateTexturePresetInputSchema = z
   .object({
-    mode: z.enum(["preset", "recipe"]),
-    preset: z.string().min(1).optional(),
+    mode: z.literal("preset"),
+    preset: z.string().min(1),
     params: paramsRecordSchema.optional(),
-    recipe: recipeSchema.optional(),
     width: textureDimensionSchema,
     height: textureDimensionSchema,
     seed: z.number().int().nonnegative().optional()
   })
   .strict()
-  .superRefine((value, context) => {
-    validateRenderArea(value, context);
+  .superRefine(validateRenderArea);
 
-    if (value.mode === "preset" && !value.preset) {
-      context.addIssue({
-        code: "custom",
-        path: ["preset"],
-        message: "`preset` is required when `mode` is `preset`."
-      });
-    }
+const generateTextureRecipeInputSchema = z
+  .object({
+    mode: z.literal("recipe"),
+    recipe: recipeSchema,
+    width: textureDimensionSchema,
+    height: textureDimensionSchema,
+    seed: z.number().int().nonnegative().optional()
+  })
+  .strict()
+  .superRefine(validateRenderArea);
 
-    if (value.mode === "recipe" && !value.recipe) {
-      context.addIssue({
-        code: "custom",
-        path: ["recipe"],
-        message: "`recipe` is required when `mode` is `recipe`."
-      });
-    }
-  });
+export const generateTextureInputSchema = z.discriminatedUnion("mode", [
+  generateTexturePresetInputSchema,
+  generateTextureRecipeInputSchema
+]);
 
 export const generateTextureOutputSchema = z
   .object({
@@ -331,6 +328,7 @@ export const getPresetSchemaOutputSchema = z
     paramCount: z.number().int().nonnegative(),
     paramNames: z.array(z.string().min(1)),
     requiredParamNames: z.array(z.string().min(1)),
+    schemaRequiredParamNames: z.array(z.string().min(1)),
     defaultParamNames: z.array(z.string().min(1)),
     defaultParams: paramsRecordSchema,
     parameterSemantics: z.record(z.string(), z.string()),

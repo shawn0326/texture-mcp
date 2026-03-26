@@ -67,7 +67,8 @@ test("core: getPresetSchemaInfo returns serializable schema info", () => {
     "padding",
     "cornerRadius"
   ]);
-  assert.deepEqual(preset.requiredParamNames, [
+  assert.deepEqual(preset.requiredParamNames, []);
+  assert.deepEqual(preset.schemaRequiredParamNames, [
     "palette",
     "orientation",
     "thickness",
@@ -821,6 +822,51 @@ test("core: generateTexture uses the default seed when none is provided", () => 
   assert.equal(second.output.usedDefaultSeed, true);
   assert.deepEqual(first.recipe, second.recipe);
   assert.deepEqual(first.imageBuffer, second.imageBuffer);
+});
+
+test("core: generateTexture rejects preset mode requests with a recipe payload", () => {
+  assert.throws(
+    () =>
+      generateTexture({
+        mode: "preset",
+        preset: "glow",
+        recipe: createRecipe([
+          {
+            type: "circle",
+            center: { x: 0.5, y: 0.5 },
+            radius: 0.25,
+            color: "#ffffff"
+          }
+        ]),
+        width: 64,
+        height: 64
+      }),
+    /unrecognized key|invalid input/i
+  );
+});
+
+test("core: generateTexture rejects recipe mode requests with preset fields", () => {
+  assert.throws(
+    () =>
+      generateTexture({
+        mode: "recipe",
+        recipe: createRecipe([
+          {
+            type: "circle",
+            center: { x: 0.5, y: 0.5 },
+            radius: 0.25,
+            color: "#ffffff"
+          }
+        ]),
+        preset: "glow",
+        params: {
+          intensity: 0.8
+        },
+        width: 64,
+        height: 64
+      }),
+    /unrecognized key|invalid input/i
+  );
 });
 
 test("core: generateTexture rejects requests with oversized texture area", () => {

@@ -408,8 +408,10 @@ export function getPresetSchemaInfo(name: string): PresetSchemaInfo | undefined 
 
   const schema = toSerializableSchema(preset.schema);
   const paramNames = getObjectSchemaPropertyNames(schema);
-  const requiredParamNames = getObjectSchemaRequiredNames(schema);
   const defaultParamNames = Object.keys(preset.defaultParams);
+  const schemaRequiredParamNames = getObjectSchemaRequiredNames(schema);
+  const defaultParamNameSet = new Set(defaultParamNames);
+  const requiredParamNames = schemaRequiredParamNames.filter((name) => !defaultParamNameSet.has(name));
 
   return {
     name: preset.name,
@@ -418,6 +420,7 @@ export function getPresetSchemaInfo(name: string): PresetSchemaInfo | undefined 
     paramCount: paramNames.length,
     paramNames,
     requiredParamNames,
+    schemaRequiredParamNames,
     defaultParamNames,
     defaultParams: preset.defaultParams,
     parameterSemantics: preset.parameterSemantics,

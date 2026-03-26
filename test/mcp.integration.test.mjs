@@ -360,6 +360,14 @@ test("mcp integration: placeholder info tools return structured results", async 
       "padding",
       "cornerRadius"
     ]);
+    assert.deepEqual(schemaResult.structuredContent.requiredParamNames, []);
+    assert.deepEqual(schemaResult.structuredContent.schemaRequiredParamNames, [
+      "palette",
+      "orientation",
+      "thickness",
+      "padding",
+      "cornerRadius"
+    ]);
     assert.equal(schemaResult.structuredContent.defaultParams.palette, "heat");
     assert.equal(schemaResult.structuredContent.parameterSemantics.palette.includes("built-in color sequences"), true);
     assert.deepEqual(schemaResult.structuredContent.primaryParams, [
@@ -371,6 +379,8 @@ test("mcp integration: placeholder info tools return structured results", async 
     assert.equal(schemaResult.structuredContent.tuningNotes.length > 0, true);
     assert.deepEqual(schemaResult.structuredContent.compilesToLayerTypes, ["gradientRect"]);
     assert.match(schemaResult.content[0].text, /defaultParams/);
+    assert.match(schemaResult.content[0].text, /requiredParamNames/);
+    assert.match(schemaResult.content[0].text, /schemaRequiredParamNames/);
     assert.match(schemaResult.content[0].text, /parameterSemantics/);
     assert.match(schemaResult.content[0].text, /generate_texture/);
 
@@ -521,6 +531,59 @@ test("mcp integration: invalid calls return tool errors", async () => {
 
     assert.equal(oversizedGenerateResult.isError, true, session.getStderr());
     assert.match(oversizedGenerateResult.content[0].text, /4096/);
+
+    const presetModeWithRecipeResult = await session.request("tools/call", {
+      name: "generate_texture",
+      arguments: {
+        mode: "preset",
+        preset: "glow",
+        recipe: {
+          version: 1,
+          layers: [
+            {
+              type: "circle",
+              center: { x: 0.5, y: 0.5 },
+              radius: 0.25,
+              color: "#ffffff"
+            }
+          ]
+        },
+        width: 64,
+        height: 64
+      }
+    });
+
+    assert.equal(presetModeWithRecipeResult.isError, true, session.getStderr());
+    assert.match(presetModeWithRecipeResult.content[0].text, /Invalid arguments/);
+    assert.match(presetModeWithRecipeResult.content[0].text, /recipe/i);
+
+    const recipeModeWithPresetResult = await session.request("tools/call", {
+      name: "generate_texture",
+      arguments: {
+        mode: "recipe",
+        recipe: {
+          version: 1,
+          layers: [
+            {
+              type: "circle",
+              center: { x: 0.5, y: 0.5 },
+              radius: 0.25,
+              color: "#ffffff"
+            }
+          ]
+        },
+        preset: "glow",
+        params: {
+          intensity: 0.8
+        },
+        width: 64,
+        height: 64
+      }
+    });
+
+    assert.equal(recipeModeWithPresetResult.isError, true, session.getStderr());
+    assert.match(recipeModeWithPresetResult.content[0].text, /Invalid arguments/);
+    assert.match(recipeModeWithPresetResult.content[0].text, /preset|params/i);
 
     const invalidRecipeResult = await session.request("tools/call", {
       name: "validate_recipe",

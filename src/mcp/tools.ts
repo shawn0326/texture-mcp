@@ -204,7 +204,7 @@ export function createTextureToolDefinitions(state: AppState): TextureToolDefini
       name: "get_preset_schema",
       title: "Get Preset Schema",
       description:
-        "Return the schema and default parameters for one built-in preset. Use this to discover valid `params` and defaults before calling `generate_texture` with `mode: \"preset\"`.",
+        "Return the schema and default parameters for one built-in preset. Use this to discover valid `params`, defaults, and which fields are still explicitly required before calling `generate_texture` with `mode: \"preset\"`.",
       inputSchema: getPresetSchemaInputSchema,
       outputSchema: getPresetSchemaOutputSchema,
       execute: async (input) => {
@@ -218,7 +218,7 @@ export function createTextureToolDefinitions(state: AppState): TextureToolDefini
         }
 
         return createToolSuccess(
-          `Preset schema returned for \`${presetDefinition.name}\`. Start from \`defaultParams\`, use \`parameterSemantics\` and \`tuningNotes\` to adjust only the parameters you need before calling \`generate_texture\` in preset mode, and check \`compilesToLayerTypes\` if you may need to fall back to recipe mode.`,
+          `Preset schema returned for \`${presetDefinition.name}\`. Start from \`defaultParams\`, check \`requiredParamNames\` for any inputs that still must be provided explicitly, use \`schemaRequiredParamNames\` when you need the raw schema contract, and use \`parameterSemantics\` plus \`tuningNotes\` to adjust only the parameters you need before calling \`generate_texture\` in preset mode.`,
           presetDefinition
         );
       }
