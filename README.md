@@ -173,6 +173,16 @@ Run the current smoke and integration tests:
 npm test
 ```
 
+Generate a local demo gallery with batch-exported images:
+
+```bash
+npm run demo:gallery
+```
+
+This local development helper script lives in `scripts/demo-gallery.mjs`.
+It writes representative preset images, parameter sweeps, and seed variations to `demo`.
+After it finishes, open `demo/index.html` to browse the results visually.
+
 ## Recommended Workflow
 
 For AI callers, the recommended sequence is:

@@ -42,4 +42,4 @@
 - [ ] 补充颜色参数非法值、宿主差异风险字段、`noise` alpha 语义等行为测试，提升 `validate_recipe` 与 renderer 的一致性。
 - [ ] 视需要补充 golden image / snapshot 测试，用于 renderer 回归比较。
 - [ ] 如需对外展示，可补一个会保留产物的 demo 脚本或示例命令。
-- [ ] 补一个批量导出 preset gallery / 参数 sweep / seed variations 的演示脚本，服务快速 demo 与回归观察。
+- [x] 补一个批量导出 preset gallery / 参数 sweep / seed variations 的演示脚本，服务快速 demo 与回归观察。
