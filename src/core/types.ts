@@ -279,6 +279,23 @@ export type ExportTextureOutput = {
   message: string;
 };
 
+export type WorkspaceRootSource = "explicit" | "env" | "cwd";
+
+export type WorkspaceExportPolicy = {
+  requiresRelativeOutputPath: true;
+  mustStayInsideWorkspaceRoot: true;
+  blocksSymlinkOrJunctionEscape: true;
+};
+
+export type GetWorkspaceInfoInput = Record<string, never>;
+
+export type GetWorkspaceInfoOutput = {
+  workspaceRoot: string;
+  workspaceRootSource: WorkspaceRootSource;
+  cwd: string;
+  exportPolicy: WorkspaceExportPolicy;
+};
+
 export type ListPresetsOutput = {
   count: number;
   presets: PresetCatalogItem[];

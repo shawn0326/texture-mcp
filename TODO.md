@@ -17,7 +17,8 @@
 
 ## P2 工程与协议
 
-- [ ] 若后续有多 workspace 或宿主集成需求，扩展 `workspaceRoot` 的来源策略。
+- [x] 暴露当前 `workspaceRoot`、来源与导出约束的查询能力，降低宿主联调时的不透明性。
+- [ ] 若后续有多 workspace 或宿主集成需求，扩展 `workspaceRoot` 的来源策略，例如多根目录或宿主显式注入。
 - [x] 明确核心事实优先通过 MCP 暴露，不把关键规则只放在宿主侧 prompt 或 skill 中。
 - [x] 收紧 `generate_texture` 的输入契约：不同 `mode` 下拒绝无关字段，避免“错误输入但被静默忽略”。
 - [x] 统一 `get_preset_schema` 的参数语义与运行时行为，区分“schema required”与“调用方实际必须显式传入”的字段。

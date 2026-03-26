@@ -13,6 +13,8 @@ import {
   exportTextureOutputSchema,
   generateTextureInputSchema,
   generateTextureOutputSchema,
+  getWorkspaceInfoInputSchema,
+  getWorkspaceInfoOutputSchema,
   getLayerSchemaInputSchema,
   getLayerSchemaOutputSchema,
   getPresetSchemaInputSchema,
@@ -28,12 +30,13 @@ import {
   type JsonSchemaObject,
   type ExportTextureInput,
   type GenerateTextureInput,
+  type GetWorkspaceInfoOutput,
   type GetLayerSchemaInput,
   type GetPresetSchemaInput,
   type ListLayerTypesOutput,
   type ListPresetsOutput
 } from "../core/types.js";
-import { getCurrentResult, setCurrentResult, type AppState } from "./state.js";
+import { getCurrentResult, getWorkspaceInfo, setCurrentResult, type AppState } from "./state.js";
 
 export type TextureToolDefinition = {
   name: string;
@@ -89,6 +92,22 @@ function toToolJsonSchema(schema: z.ZodTypeAny): { type: "object"; [key: string]
 export function createTextureToolDefinitions(state: AppState): TextureToolDefinition[] {
   return [
     {
+      name: "get_workspace_info",
+      title: "Get Workspace Info",
+      description:
+        "Return the current `workspaceRoot`, how it was resolved, the server `cwd`, and the export path guardrails used by `export_texture`. Use this during MCP host integration or debugging when you need to confirm where files are allowed to be written.",
+      inputSchema: getWorkspaceInfoInputSchema,
+      outputSchema: getWorkspaceInfoOutputSchema,
+      execute: async () => {
+        const workspaceInfo: GetWorkspaceInfoOutput = getWorkspaceInfo(state);
+
+        return createToolSuccess(
+          `Workspace info returned. Current \`workspaceRoot\` is \`${workspaceInfo.workspaceRoot}\` from source \`${workspaceInfo.workspaceRootSource}\`. Use this to confirm where \`export_texture\` is allowed to write, especially when the host \`cwd\` or \`TEXTURE_MCP_WORKSPACE\` may differ from your intended project root.`,
+          workspaceInfo
+        );
+      }
+    },
+    {
       name: "generate_texture",
       title: "Generate Texture",
       description:
@@ -125,7 +144,7 @@ export function createTextureToolDefinitions(state: AppState): TextureToolDefini
 
         if (!current) {
           return createToolError(
-            "No current result is available. Run `generate_texture` first in this MCP session, then call `export_texture` with a relative path inside `workspaceRoot`."
+            "No current result is available. Run `generate_texture` first in this MCP session, then call `export_texture` with a relative path inside `workspaceRoot`. If you need to confirm the current export root, call `get_workspace_info`."
           );
         }
 

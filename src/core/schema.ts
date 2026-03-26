@@ -9,6 +9,7 @@ import { getRecipeStats } from "./recipe-analysis.js";
 import type { LayerSpec } from "./types.js";
 
 export const imageFormatSchema = z.enum(["png", "jpeg", "webp"]);
+export const workspaceRootSourceSchema = z.enum(["explicit", "env", "cwd"]);
 export const paramsRecordSchema = z.record(z.string(), z.unknown());
 export const jsonSchemaObjectSchema = z.record(z.string(), z.unknown());
 export const normalizedNumberSchema = z.number().min(0).max(1);
@@ -268,6 +269,25 @@ export const exportTextureOutputSchema = z
     seed: z.number().int().nonnegative(),
     metaSaved: z.boolean(),
     message: z.string()
+  })
+  .strict();
+
+export const workspaceExportPolicySchema = z
+  .object({
+    requiresRelativeOutputPath: z.literal(true),
+    mustStayInsideWorkspaceRoot: z.literal(true),
+    blocksSymlinkOrJunctionEscape: z.literal(true)
+  })
+  .strict();
+
+export const getWorkspaceInfoInputSchema = z.object({}).strict();
+
+export const getWorkspaceInfoOutputSchema = z
+  .object({
+    workspaceRoot: z.string().min(1),
+    workspaceRootSource: workspaceRootSourceSchema,
+    cwd: z.string().min(1),
+    exportPolicy: workspaceExportPolicySchema
   })
   .strict();
 

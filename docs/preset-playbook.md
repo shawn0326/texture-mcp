@@ -17,8 +17,11 @@ If you need exact layer-by-layer control, switch to `recipe` mode instead.
 | Preset | Best for | Main knobs | Compiles to |
 | --- | --- | --- | --- |
 | `glow` | soft energy cores, small light sprites | `intensity`, `falloff` | `gradientCircle` + `noise` |
+| `flare` | bright sprite flares, pickup glints, impact sparks | `coreSize`, `intensity`, `falloff`, `heat` | `gradientCircle` + `circle` + `blur` |
+| `softMask` | particle masks, alpha fades, shader helper textures | `shape`, `softness`, `radius`, `thickness`, `orientation` | `circle`/`rect` + `blur` |
 | `ring` | shields, portals, impact circles | `thickness`, `softness` | `ring` + `blur` |
 | `smoke` | diffuse fog or cloudy texture | `density`, `turbulence` | `noise` + `blur` + `circle` |
+| `shockwave` | expanding impact rings and pulse fronts | `radius`, `thickness`, `softness`, `intensity` | `gradientCircle` + `ring` + `blur` |
 | `panel` | sci-fi UI blocks and cards | `width`, `height`, `cornerRadius`, `glow` | `rect` + `blur` + `gradientRect` |
 | `beam` | laser slashes, energy strips | `orientation`, `length`, `thickness`, `intensity` | `gradientRect` + `blur` + `rect` |
 | `colorRamp` | heatmaps, lookup ramps, palette bands | `palette`, `orientation`, `thickness`, `padding`, `cornerRadius` | `gradientRect` |
@@ -48,6 +51,53 @@ Soft center glow with a little grain.
   - Raise `intensity` to brighten the core and also increase the noise pass slightly
   - Raise `falloff` to enlarge the glow radius
   - Good first choice for magic sparks, pickups, and lens-like light sprites
+
+### `flare`
+
+Bright energy flare with a hot halo, crisp core, and soft bloom.
+
+- Defaults:
+
+```json
+{
+  "coreSize": 0.11,
+  "intensity": 0.9,
+  "falloff": 0.55,
+  "heat": 0.8,
+  "softness": 0.35
+}
+```
+
+- Tuning notes:
+  - Raise `coreSize` to make the center read more like a solid light sprite
+  - Raise `falloff` to push more energy into the outer halo
+  - Raise `heat` for warmer amber light, lower it for paler cooler light
+  - Raise `softness` when you want a bloomier, less graphic flare
+
+### `softMask`
+
+Soft grayscale mask sprite for particles, fades, and shader helper textures.
+
+- Defaults:
+
+```json
+{
+  "shape": "circle",
+  "softness": 0.45,
+  "radius": 0.3,
+  "thickness": 0.2,
+  "width": 0.82,
+  "height": 0.4,
+  "orientation": "horizontal",
+  "cornerRadius": 0.08
+}
+```
+
+- Tuning notes:
+  - Use `shape: "circle"` for radial particle fades and sprite alpha masks
+  - Use `shape: "band"` with `orientation` for directional beam or trail falloff strips
+  - Use `shape: "rect"` when you need a soft rounded block mask
+  - Raise `softness` to widen the feathered edge after the base shape is drawn
 
 ### `ring`
 
@@ -105,6 +155,28 @@ Soft sci-fi panel block with a crisp gradient body and glow.
   - `cornerRadius` shapes both the body and the glow shell
   - `glow` expands the outer soft block and slightly brightens the panel face
   - Works well as the base for a follow-up `text` recipe
+
+### `shockwave`
+
+Expanding impact ring with a soft inner glow and blurred edge.
+
+- Defaults:
+
+```json
+{
+  "radius": 0.3,
+  "thickness": 0.09,
+  "softness": 0.35,
+  "intensity": 0.85,
+  "innerGlow": 0.25
+}
+```
+
+- Tuning notes:
+  - Raise `radius` when you want a larger pulse front
+  - Raise `thickness` to make the wave body feel heavier and more graphic
+  - Raise `softness` to push the ring toward a bloomier energy effect
+  - Lower `innerGlow` if you want a cleaner, more hollow shock ring
 
 ### `beam`
 

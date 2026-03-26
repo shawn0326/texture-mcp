@@ -213,6 +213,7 @@ test("mcp integration: initialize and list tools", async () => {
     const toolNames = toolListResult.tools.map((tool) => tool.name).sort();
     const generateTool = toolListResult.tools.find((tool) => tool.name === "generate_texture");
     const exportTool = toolListResult.tools.find((tool) => tool.name === "export_texture");
+    const workspaceTool = toolListResult.tools.find((tool) => tool.name === "get_workspace_info");
     const validateTool = toolListResult.tools.find((tool) => tool.name === "validate_recipe");
 
     assert.deepEqual(toolNames, [
@@ -220,6 +221,7 @@ test("mcp integration: initialize and list tools", async () => {
       "generate_texture",
       "get_layer_schema",
       "get_preset_schema",
+      "get_workspace_info",
       "list_layer_types",
       "list_presets",
       "validate_recipe"
@@ -229,6 +231,8 @@ test("mcp integration: initialize and list tools", async () => {
     assert.match(generateTool.description, /seed/i);
     assert.match(exportTool.description, /workspaceRoot/i);
     assert.match(exportTool.description, /generate_texture/i);
+    assert.match(workspaceTool.description, /workspaceRoot/i);
+    assert.match(workspaceTool.description, /cwd/i);
     assert.match(validateTool.description, /normalizedRecipe/);
   } finally {
     await session.close();
@@ -251,6 +255,7 @@ test("mcp integration: initialize and list tools over content-length framing", a
 
     assert.equal(toolNames.includes("generate_texture"), true);
     assert.equal(toolNames.includes("export_texture"), true);
+    assert.equal(toolNames.includes("get_workspace_info"), true);
     assert.equal(toolNames.includes("validate_recipe"), true);
     assert.equal(resourcesResult.resources.length, 4);
     assert.equal(promptsResult.prompts.length, 2);
@@ -321,19 +326,37 @@ test("mcp integration: placeholder info tools return structured results", async 
   const session = await createMcpSession();
 
   try {
+    const workspaceInfoResult = await session.request("tools/call", {
+      name: "get_workspace_info",
+      arguments: {}
+    });
+
+    assert.notEqual(workspaceInfoResult.isError, true, session.getStderr());
+    assert.equal(workspaceInfoResult.structuredContent.workspaceRoot, projectRoot);
+    assert.equal(workspaceInfoResult.structuredContent.workspaceRootSource, "cwd");
+    assert.equal(workspaceInfoResult.structuredContent.cwd, projectRoot);
+    assert.equal(workspaceInfoResult.structuredContent.exportPolicy.requiresRelativeOutputPath, true);
+    assert.equal(workspaceInfoResult.structuredContent.exportPolicy.mustStayInsideWorkspaceRoot, true);
+    assert.equal(
+      workspaceInfoResult.structuredContent.exportPolicy.blocksSymlinkOrJunctionEscape,
+      true
+    );
+    assert.match(workspaceInfoResult.content[0].text, /workspaceRoot/);
+    assert.match(workspaceInfoResult.content[0].text, /TEXTURE_MCP_WORKSPACE/);
+
     const presetsResult = await session.request("tools/call", {
       name: "list_presets",
       arguments: {}
     });
 
     assert.notEqual(presetsResult.isError, true, session.getStderr());
-    assert.equal(presetsResult.structuredContent.count, 6);
-    assert.equal(presetsResult.structuredContent.presets.length, 6);
+    assert.equal(presetsResult.structuredContent.count, 9);
+    assert.equal(presetsResult.structuredContent.presets.length, 9);
     assert.match(presetsResult.content[0].text, /get_preset_schema/);
     assert.match(presetsResult.content[0].text, /commonUses/);
     assert.deepEqual(
       presetsResult.structuredContent.presets.map((preset) => preset.name).sort(),
-      ["beam", "colorRamp", "glow", "panel", "ring", "smoke"]
+      ["beam", "colorRamp", "flare", "glow", "panel", "ring", "shockwave", "smoke", "softMask"]
     );
     assert.deepEqual(
       presetsResult.structuredContent.presets.find((preset) => preset.name === "beam").primaryParams,
@@ -342,6 +365,24 @@ test("mcp integration: placeholder info tools return structured results", async 
     assert.equal(
       presetsResult.structuredContent.presets.find((preset) => preset.name === "beam").commonUses.includes(
         "energy beams"
+      ),
+      true
+    );
+    assert.equal(
+      presetsResult.structuredContent.presets.find((preset) => preset.name === "flare").commonUses.includes(
+        "pickup sprites"
+      ),
+      true
+    );
+    assert.equal(
+      presetsResult.structuredContent.presets.find((preset) => preset.name === "softMask").commonUses.includes(
+        "soft particle masks"
+      ),
+      true
+    );
+    assert.equal(
+      presetsResult.structuredContent.presets.find((preset) => preset.name === "shockwave").commonUses.includes(
+        "impact pulses"
       ),
       true
     );
@@ -521,6 +562,7 @@ test("mcp integration: invalid calls return tool errors", async () => {
 
     assert.equal(exportWithoutGenerateResult.isError, true, session.getStderr());
     assert.match(exportWithoutGenerateResult.content[0].text, /Run `generate_texture` first/);
+    assert.match(exportWithoutGenerateResult.content[0].text, /get_workspace_info/);
     assert.match(exportWithoutGenerateResult.content[0].text, /workspaceRoot/);
 
     const oversizedGenerateResult = await session.request("tools/call", {

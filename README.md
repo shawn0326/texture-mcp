@@ -17,9 +17,12 @@ A procedural 2D VFX texture generator exposed via MCP, using presets and recipes
 
 Current built-in presets:
 
+- `flare`
 - `glow`
 - `ring`
 - `smoke`
+- `softMask`
+- `shockwave`
 - `panel`
 - `beam`
 - `colorRamp`
@@ -37,6 +40,7 @@ Current recipe layer types:
 
 Current MCP tools:
 
+- `get_workspace_info`
 - `list_presets`
 - `get_preset_schema`
 - `list_layer_types`
@@ -114,6 +118,8 @@ npx -y texture-mcp
 
 The transport is **stdio**.
 
+If your MCP host does not launch the server with the intended project directory as its current working directory, set `TEXTURE_MCP_WORKSPACE` explicitly before starting the server so `export_texture` uses the correct sandbox root.
+
 ### Stdio Compatibility
 
 Different MCP hosts do not always frame stdio messages in exactly the same way.
@@ -130,10 +136,11 @@ If a host can connect in one environment but fails the MCP handshake in another,
 Once connected, the simplest user flow is:
 
 1. Ask the client to list presets or layer types.
-2. Inspect one preset or layer schema.
-3. Validate a recipe if you are using `recipe` mode.
-4. Generate a texture.
-5. Export the current result to a relative path inside the workspace.
+2. Optionally call `get_workspace_info` to confirm the current export root.
+3. Inspect one preset or layer schema.
+4. Validate a recipe if you are using `recipe` mode.
+5. Generate a texture.
+6. Export the current result to a relative path inside the workspace.
 
 Use `preset` mode when you want the fastest path to a useful result.
 Use `recipe` mode when you want direct control over layer composition.
@@ -204,6 +211,7 @@ Resources are returned as `text/markdown` and are generated at runtime from the 
 The tools return stable `structuredContent` intended for MCP callers.
 
 - `list_presets` returns `count` and `presets`.
+- `get_workspace_info` returns `workspaceRoot`, `workspaceRootSource`, `cwd`, and `exportPolicy`.
 - `list_presets` preset items also include `primaryParams` and `commonUses` to help pick the best semantic starting point.
 - `get_preset_schema` returns full preset schema metadata plus summary fields such as `mode`, `paramCount`, `paramNames`, `requiredParamNames`, `schemaRequiredParamNames`, `defaultParamNames`, `parameterSemantics`, `commonUses`, `tuningNotes`, and `compilesToLayerTypes`.
 - `list_layer_types` returns `count` and `layers`.
@@ -263,6 +271,17 @@ Typical `beam` parameters:
   "intensity": 0.85
 }
 ```
+
+## Example: Check The Current Export Root
+
+```json
+{
+  "tool": "get_workspace_info",
+  "arguments": {}
+}
+```
+
+Use this when a host launches the MCP server from an unexpected directory or when you need to confirm which sandbox root `export_texture` will enforce.
 
 ## Example: Discover Recipe Layers
 
@@ -458,6 +477,7 @@ For JPEG or WebP output:
 - Total texture area is bounded.
 - Total layer count is bounded.
 - Output paths must stay inside `workspaceRoot`.
+- `workspaceRoot` is resolved from an explicit server setting first, then `TEXTURE_MCP_WORKSPACE`, and finally the server process `cwd`.
 - If `seed` is omitted, a fixed default seed is used so results remain reproducible.
 
 ## Status

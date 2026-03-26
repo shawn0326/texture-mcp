@@ -44,13 +44,22 @@ const { validateRecipe } = await import(
 test("core: listPresetCatalog returns the MVP preset catalog", () => {
   const presets = listPresetCatalog();
   const beam = presets.find((preset) => preset.name === "beam");
+  const flare = presets.find((preset) => preset.name === "flare");
+  const softMask = presets.find((preset) => preset.name === "softMask");
+  const shockwave = presets.find((preset) => preset.name === "shockwave");
 
   assert.deepEqual(
     presets.map((preset) => preset.name).sort(),
-    ["beam", "colorRamp", "glow", "panel", "ring", "smoke"]
+    ["beam", "colorRamp", "flare", "glow", "panel", "ring", "shockwave", "smoke", "softMask"]
   );
   assert.deepEqual(beam.primaryParams, ["orientation", "length", "thickness", "intensity"]);
   assert.equal(beam.commonUses.includes("energy beams"), true);
+  assert.deepEqual(flare.primaryParams, ["coreSize", "intensity", "falloff", "heat"]);
+  assert.equal(flare.commonUses.includes("pickup sprites"), true);
+  assert.deepEqual(softMask.primaryParams, ["shape", "softness", "radius", "thickness", "orientation"]);
+  assert.equal(softMask.commonUses.includes("soft particle masks"), true);
+  assert.deepEqual(shockwave.primaryParams, ["radius", "thickness", "softness", "intensity"]);
+  assert.equal(shockwave.commonUses.includes("shockwaves"), true);
 });
 
 test("core: getPresetSchemaInfo returns serializable schema info", () => {
@@ -769,6 +778,88 @@ test("core: generateTexture resolves preset params into recipe and meta", () => 
   assert.equal(generated.recipe.layers.length > 0, true);
   assert.equal(generated.imageBuffer.subarray(0, 8).toString("hex"), "89504e470d0a1a0a");
   assert.equal(generated.output.message, "Texture rendered and stored as the current result.");
+});
+
+test("core: generateTexture compiles the shockwave preset into a layered pulse recipe", () => {
+  const generated = generateTexture({
+    mode: "preset",
+    preset: "shockwave",
+    params: {
+      radius: 0.34,
+      thickness: 0.12,
+      softness: 0.4
+    },
+    width: 256,
+    height: 256,
+    seed: 7
+  });
+
+  assert.equal(generated.output.mode, "preset");
+  assert.equal(generated.output.preset, "shockwave");
+  assert.equal(generated.meta.params.radius, 0.34);
+  assert.equal(generated.meta.params.thickness, 0.12);
+  assert.equal(generated.meta.params.softness, 0.4);
+  assert.equal(generated.meta.params.intensity, 0.85);
+  assert.deepEqual(
+    generated.recipe.layers.map((layer) => layer.type),
+    ["gradientCircle", "ring", "blur"]
+  );
+});
+
+test("core: generateTexture compiles the flare preset into a bright layered sprite recipe", () => {
+  const generated = generateTexture({
+    mode: "preset",
+    preset: "flare",
+    params: {
+      coreSize: 0.12,
+      heat: 0.9,
+      softness: 0.45
+    },
+    width: 256,
+    height: 256,
+    seed: 5
+  });
+
+  assert.equal(generated.output.mode, "preset");
+  assert.equal(generated.output.preset, "flare");
+  assert.equal(generated.meta.params.coreSize, 0.12);
+  assert.equal(generated.meta.params.heat, 0.9);
+  assert.equal(generated.meta.params.softness, 0.45);
+  assert.equal(generated.meta.params.intensity, 0.9);
+  assert.deepEqual(
+    generated.recipe.layers.map((layer) => layer.type),
+    ["gradientCircle", "gradientCircle", "circle", "blur"]
+  );
+});
+
+test("core: generateTexture compiles the softMask preset into a directional soft mask recipe", () => {
+  const generated = generateTexture({
+    mode: "preset",
+    preset: "softMask",
+    params: {
+      shape: "band",
+      thickness: 0.18,
+      orientation: "vertical",
+      softness: 0.5
+    },
+    width: 256,
+    height: 256,
+    seed: 6
+  });
+
+  assert.equal(generated.output.mode, "preset");
+  assert.equal(generated.output.preset, "softMask");
+  assert.equal(generated.meta.params.shape, "band");
+  assert.equal(generated.meta.params.thickness, 0.18);
+  assert.equal(generated.meta.params.orientation, "vertical");
+  assert.equal(generated.meta.params.softness, 0.5);
+  assert.equal(generated.meta.params.width, 0.82);
+  assert.deepEqual(
+    generated.recipe.layers.map((layer) => layer.type),
+    ["rect", "blur"]
+  );
+  assert.equal(generated.recipe.layers[0].size.width, 0.18);
+  assert.equal(generated.recipe.layers[0].size.height, 0.4);
 });
 
 test("core: generateTexture preserves explicit recipe input", () => {

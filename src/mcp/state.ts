@@ -1,4 +1,10 @@
-import type { Meta, Recipe } from "../core/types.js";
+import path from "node:path";
+import type {
+  GetWorkspaceInfoOutput,
+  Meta,
+  Recipe,
+  WorkspaceRootSource
+} from "../core/types.js";
 
 export type CurrentResult = {
   recipe: Recipe;
@@ -8,26 +14,46 @@ export type CurrentResult = {
 
 export type AppState = {
   workspaceRoot: string;
+  workspaceRootSource: WorkspaceRootSource;
+  cwd: string;
   current: CurrentResult | null;
 };
 
-function resolveWorkspaceRoot(explicitWorkspaceRoot?: string): string {
-  if (explicitWorkspaceRoot) {
-    return explicitWorkspaceRoot;
+function resolveWorkspaceState(explicitWorkspaceRoot?: string): Pick<
+  AppState,
+  "workspaceRoot" | "workspaceRootSource" | "cwd"
+> {
+  const cwd = path.resolve(process.cwd());
+  const trimmedExplicitWorkspaceRoot = explicitWorkspaceRoot?.trim();
+
+  if (trimmedExplicitWorkspaceRoot) {
+    return {
+      workspaceRoot: path.resolve(trimmedExplicitWorkspaceRoot),
+      workspaceRootSource: "explicit",
+      cwd
+    };
   }
 
   const environmentWorkspaceRoot = process.env.TEXTURE_MCP_WORKSPACE?.trim();
 
   if (environmentWorkspaceRoot) {
-    return environmentWorkspaceRoot;
+    return {
+      workspaceRoot: path.resolve(environmentWorkspaceRoot),
+      workspaceRootSource: "env",
+      cwd
+    };
   }
 
-  return process.cwd();
+  return {
+    workspaceRoot: cwd,
+    workspaceRootSource: "cwd",
+    cwd
+  };
 }
 
 export function createAppState(workspaceRoot?: string): AppState {
   return {
-    workspaceRoot: resolveWorkspaceRoot(workspaceRoot),
+    ...resolveWorkspaceState(workspaceRoot),
     current: null
   };
 }
@@ -38,4 +64,17 @@ export function getCurrentResult(state: AppState): CurrentResult | null {
 
 export function setCurrentResult(state: AppState, current: CurrentResult): void {
   state.current = current;
+}
+
+export function getWorkspaceInfo(state: AppState): GetWorkspaceInfoOutput {
+  return {
+    workspaceRoot: state.workspaceRoot,
+    workspaceRootSource: state.workspaceRootSource,
+    cwd: state.cwd,
+    exportPolicy: {
+      requiresRelativeOutputPath: true,
+      mustStayInsideWorkspaceRoot: true,
+      blocksSymlinkOrJunctionEscape: true
+    }
+  };
 }

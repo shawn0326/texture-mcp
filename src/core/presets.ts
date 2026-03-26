@@ -43,6 +43,29 @@ const glowParamsSchema = z
   })
   .strict();
 
+const flareParamsSchema = z
+  .object({
+    coreSize: z.number().min(0.04).max(0.26),
+    intensity: z.number().min(0).max(1),
+    falloff: z.number().min(0).max(1),
+    heat: z.number().min(0).max(1),
+    softness: z.number().min(0).max(1)
+  })
+  .strict();
+
+const softMaskParamsSchema = z
+  .object({
+    shape: z.enum(["circle", "band", "rect"]),
+    softness: z.number().min(0).max(1),
+    radius: z.number().min(0.08).max(0.48),
+    thickness: z.number().min(0.04).max(0.8),
+    width: z.number().min(0.08).max(1),
+    height: z.number().min(0.08).max(1),
+    orientation: z.enum(["horizontal", "vertical"]),
+    cornerRadius: z.number().min(0).max(0.5)
+  })
+  .strict();
+
 const ringParamsSchema = z
   .object({
     thickness: z.number().min(0).max(1),
@@ -57,9 +80,22 @@ const smokeParamsSchema = z
   })
   .strict();
 
+const shockwaveParamsSchema = z
+  .object({
+    radius: z.number().min(0.12).max(0.6),
+    thickness: z.number().min(0.02).max(0.3),
+    softness: z.number().min(0).max(1),
+    intensity: z.number().min(0).max(1),
+    innerGlow: z.number().min(0).max(1)
+  })
+  .strict();
+
 type GlowParams = z.infer<typeof glowParamsSchema>;
+type FlareParams = z.infer<typeof flareParamsSchema>;
+type SoftMaskParams = z.infer<typeof softMaskParamsSchema>;
 type RingParams = z.infer<typeof ringParamsSchema>;
 type SmokeParams = z.infer<typeof smokeParamsSchema>;
+type ShockwaveParams = z.infer<typeof shockwaveParamsSchema>;
 type PanelParams = z.infer<typeof panelParamsSchema>;
 type BeamParams = z.infer<typeof beamParamsSchema>;
 type ColorRampParams = z.infer<typeof colorRampParamsSchema>;
@@ -100,6 +136,110 @@ function createGlowRecipe(params: GlowParams): Recipe {
   ]);
 }
 
+function createFlareRecipe(params: FlareParams): Recipe {
+  const haloRadius = Math.min(0.9, params.coreSize + 0.16 + params.falloff * 0.28);
+  const midRadius = Math.min(0.78, params.coreSize + 0.05 + params.falloff * 0.12);
+  const coreRadius = Math.max(0.02, params.coreSize * (0.65 + params.intensity * 0.35));
+  const cool = 1 - params.heat;
+  const warmRed = Math.round(255 - cool * 24);
+  const warmGreen = Math.round(188 + params.heat * 42 - cool * 22);
+  const warmBlue = Math.round(120 + cool * 70 - params.heat * 18);
+  const outerRed = Math.round(255 - cool * 40);
+  const outerGreen = Math.round(118 + params.heat * 34 + cool * 10);
+  const outerBlue = Math.round(42 + cool * 58);
+
+  return createRecipe([
+    {
+      type: "gradientCircle",
+      center: { x: 0.5, y: 0.5 },
+      radius: haloRadius,
+      colors: [
+        `rgba(255, 255, 255, ${(0.26 + params.intensity * 0.26).toFixed(3)})`,
+        `rgba(${warmRed}, ${warmGreen}, ${warmBlue}, ${(0.14 + params.intensity * 0.2).toFixed(3)})`,
+        `rgba(${outerRed}, ${outerGreen}, ${outerBlue}, 0)`
+      ]
+    },
+    {
+      type: "gradientCircle",
+      center: { x: 0.5, y: 0.5 },
+      radius: midRadius,
+      colors: [
+        `rgba(255, 252, 245, ${(0.42 + params.intensity * 0.28).toFixed(3)})`,
+        `rgba(${warmRed}, ${warmGreen}, ${warmBlue}, ${(0.16 + params.heat * 0.14).toFixed(3)})`,
+        "rgba(255, 210, 120, 0)"
+      ]
+    },
+    {
+      type: "circle",
+      center: { x: 0.5, y: 0.5 },
+      radius: coreRadius,
+      color: `rgba(255, 250, 240, ${(0.72 + params.intensity * 0.24).toFixed(3)})`
+    },
+    {
+      type: "blur",
+      radius: Math.min(0.16, 0.012 + params.softness * 0.08 + params.intensity * 0.012)
+    }
+  ]);
+}
+
+function createSoftMaskRecipe(params: SoftMaskParams): Recipe {
+  const blurRadius = Math.min(0.18, 0.01 + params.softness * 0.12);
+  const maskColor = "rgba(255, 255, 255, 1)";
+
+  if (params.shape === "circle") {
+    return createRecipe([
+      {
+        type: "circle",
+        center: { x: 0.5, y: 0.5 },
+        radius: params.radius,
+        color: maskColor
+      },
+      {
+        type: "blur",
+        radius: blurRadius
+      }
+    ]);
+  }
+
+  if (params.shape === "band") {
+    const size =
+      params.orientation === "horizontal"
+        ? { width: params.width, height: params.thickness }
+        : { width: params.thickness, height: params.height };
+    const origin = createCenteredOrigin(size.width, size.height);
+
+    return createRecipe([
+      {
+        type: "rect",
+        origin,
+        size,
+        cornerRadius: 0.5,
+        color: maskColor
+      },
+      {
+        type: "blur",
+        radius: blurRadius
+      }
+    ]);
+  }
+
+  const origin = createCenteredOrigin(params.width, params.height);
+
+  return createRecipe([
+    {
+      type: "rect",
+      origin,
+      size: { width: params.width, height: params.height },
+      cornerRadius: params.cornerRadius,
+      color: maskColor
+    },
+    {
+      type: "blur",
+      radius: blurRadius
+    }
+  ]);
+}
+
 function createRingRecipe(params: RingParams): Recipe {
   const innerRadius = Math.max(0.05, 0.25 - params.thickness * 0.15);
   const outerRadius = Math.min(0.95, innerRadius + 0.1 + params.thickness * 0.35);
@@ -134,6 +274,38 @@ function createSmokeRecipe(params: SmokeParams): Recipe {
       center: { x: 0.5, y: 0.5 },
       radius: 0.3 + params.density * 0.2,
       color: `rgba(210, 215, 225, ${(0.12 + params.density * 0.25).toFixed(3)})`
+    }
+  ]);
+}
+
+function createShockwaveRecipe(params: ShockwaveParams): Recipe {
+  const innerRadius = Math.max(0.04, params.radius - params.thickness * 0.5);
+  const outerRadius = Math.min(0.98, params.radius + params.thickness * 0.5);
+  const innerGlowRadius = Math.max(0.06, innerRadius * (0.9 + params.innerGlow * 0.05));
+  const ringAlpha = 0.3 + params.intensity * 0.55;
+  const innerGlowAlpha = 0.05 + params.innerGlow * 0.22 + params.intensity * 0.08;
+
+  return createRecipe([
+    {
+      type: "gradientCircle",
+      center: { x: 0.5, y: 0.5 },
+      radius: innerGlowRadius,
+      colors: [
+        `rgba(255, 255, 255, ${innerGlowAlpha.toFixed(3)})`,
+        `rgba(130, 225, 255, ${(innerGlowAlpha * 0.45).toFixed(3)})`,
+        "rgba(130, 225, 255, 0)"
+      ]
+    },
+    {
+      type: "ring",
+      center: { x: 0.5, y: 0.5 },
+      innerRadius,
+      outerRadius,
+      color: `rgba(195, 240, 255, ${ringAlpha.toFixed(3)})`
+    },
+    {
+      type: "blur",
+      radius: Math.min(0.18, 0.015 + params.softness * 0.12 + params.intensity * 0.01)
     }
   ]);
 }
@@ -255,6 +427,70 @@ export const presetDefinitions: PresetDefinition[] = [
     toRecipe: createGlowRecipe
   },
   {
+    name: "flare",
+    description: "Bright energy flare with a hot halo, crisp core, and soft bloom.",
+    schema: flareParamsSchema,
+    defaultParams: {
+      coreSize: 0.11,
+      intensity: 0.9,
+      falloff: 0.55,
+      heat: 0.8,
+      softness: 0.35
+    },
+    primaryParams: ["coreSize", "intensity", "falloff", "heat"],
+    parameterSemantics: {
+      coreSize: "Controls the size of the bright center core before bloom is applied.",
+      intensity: "Controls overall brightness for both the core and surrounding halo.",
+      falloff: "Controls how far the flare halo extends outward from the center.",
+      heat: "Shifts the flare palette toward hotter amber tones or cooler pale tones.",
+      softness: "Controls the amount of final blur used to bloom the flare."
+    },
+    commonUses: ["energy flares", "impact sparks", "pickup sprites", "bright spell cores"],
+    tuningNotes: [
+      "Increase `coreSize` when you want a chunkier central light sprite instead of a pin-hot point.",
+      "Increase `falloff` to push more of the flare energy into the outer halo.",
+      "Increase `heat` for warmer amber highlights; lower it for paler cooler light.",
+      "Increase `softness` when you want the preset to feel bloomier and less graphic."
+    ],
+    compilesToLayerTypes: ["gradientCircle", "circle", "blur"],
+    toRecipe: createFlareRecipe
+  },
+  {
+    name: "softMask",
+    description: "Soft grayscale mask sprite for particles, fades, and shader helper textures.",
+    schema: softMaskParamsSchema,
+    defaultParams: {
+      shape: "circle",
+      softness: 0.45,
+      radius: 0.3,
+      thickness: 0.2,
+      width: 0.82,
+      height: 0.4,
+      orientation: "horizontal",
+      cornerRadius: 0.08
+    },
+    primaryParams: ["shape", "softness", "radius", "thickness", "orientation"],
+    parameterSemantics: {
+      shape: "Selects whether the mask is built as a circular sprite, a centered band, or a rounded rectangle.",
+      softness: "Controls the blur radius used to feather the mask edge after the base shape is drawn.",
+      radius: "Controls the circle radius when `shape` is `circle`.",
+      thickness: "Controls the narrow dimension of the band when `shape` is `band`.",
+      width: "Controls the mask width when `shape` is `band` or `rect`.",
+      height: "Controls the mask height when `shape` is `band` or `rect`.",
+      orientation: "Selects whether a `band` mask runs horizontally or vertically through the canvas.",
+      cornerRadius: "Controls rounded corners when `shape` is `rect`."
+    },
+    commonUses: ["soft particle masks", "alpha fades", "beam falloff masks", "shader helper textures"],
+    tuningNotes: [
+      "Use `shape: \"circle\"` for radial particle fades and simple sprite alpha masks.",
+      "Use `shape: \"band\"` with `orientation` to create directional falloff strips for beams and trails.",
+      "Use `shape: \"rect\"` when you need a soft block mask for UI or shader helper textures.",
+      "Increase `softness` when you want a broader, more forgiving feathered edge."
+    ],
+    compilesToLayerTypes: ["circle", "rect", "blur"],
+    toRecipe: createSoftMaskRecipe
+  },
+  {
     name: "ring",
     description: "Circular ring with optional softness.",
     schema: ringParamsSchema,
@@ -289,6 +525,35 @@ export const presetDefinitions: PresetDefinition[] = [
     ],
     compilesToLayerTypes: ["noise", "blur", "circle"],
     toRecipe: createSmokeRecipe
+  },
+  {
+    name: "shockwave",
+    description: "Expanding impact ring with a soft inner glow and blurred edge.",
+    schema: shockwaveParamsSchema,
+    defaultParams: {
+      radius: 0.3,
+      thickness: 0.09,
+      softness: 0.35,
+      intensity: 0.85,
+      innerGlow: 0.25
+    },
+    primaryParams: ["radius", "thickness", "softness", "intensity"],
+    parameterSemantics: {
+      radius: "Controls the normalized radius of the shockwave ring.",
+      thickness: "Controls the visible width of the ring band before blur is applied.",
+      softness: "Controls how much the final ring edge is softened by blur.",
+      intensity: "Controls the brightness of the ring body and slightly increases bloom strength.",
+      innerGlow: "Controls the strength of the soft radial glow inside the ring."
+    },
+    commonUses: ["shockwaves", "impact pulses", "expanding blast rings", "area markers"],
+    tuningNotes: [
+      "Increase `radius` when you want a wider expanding pulse silhouette.",
+      "Increase `thickness` for a heavier and more graphic wave front.",
+      "Increase `softness` when you want a bloomier, less crisp edge.",
+      "Reduce `innerGlow` if you want the preset to read more like a pure ring than an energy pulse."
+    ],
+    compilesToLayerTypes: ["gradientCircle", "ring", "blur"],
+    toRecipe: createShockwaveRecipe
   },
   {
     name: "panel",

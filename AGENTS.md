@@ -16,13 +16,17 @@
   - `noise`
   - `blur`
 - 当前已实现的内置 presets：
+  - `flare`
   - `glow`
   - `ring`
   - `smoke`
+  - `softMask`
+  - `shockwave`
   - `panel`
   - `beam`
   - `colorRamp`
 - 当前已实现的 MCP tools：
+  - `get_workspace_info`
   - `generate_texture`
   - `export_texture`
   - `list_presets`
@@ -33,6 +37,7 @@
 - 当前已补齐的工程护栏：
   - 贴图尺寸、总像素、layer 数量限制
   - 导出路径的 `workspaceRoot` 约束与 symlink / junction 逃逸拦截
+  - 可查询当前 `workspaceRoot`、来源与导出约束，便于宿主联调
   - 默认固定 `seed`，不依赖不可控随机源
 - 当前阶段的开发重点已进入 P2：补充语义文档、资源与完整调用示例。
 - 当前产品判断：
