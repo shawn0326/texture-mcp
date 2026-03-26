@@ -21,7 +21,7 @@
 - [x] 明确核心事实优先通过 MCP 暴露，不把关键规则只放在宿主侧 prompt 或 skill 中。
 - [x] 收紧 `generate_texture` 的输入契约：不同 `mode` 下拒绝无关字段，避免“错误输入但被静默忽略”。
 - [x] 统一 `get_preset_schema` 的参数语义与运行时行为，区分“schema required”与“调用方实际必须显式传入”的字段。
-- [ ] 校准 MCP server 对外暴露的版本号与 npm 包版本，减少宿主联调时的诊断歧义。
+- [x] 校准 MCP server 对外暴露的版本号与 npm 包版本，减少宿主联调时的诊断歧义。
 
 ## P3 产品增强
 

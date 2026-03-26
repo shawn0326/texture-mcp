@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import {
   CallToolRequestSchema,
   ErrorCode,
@@ -12,7 +14,7 @@ import {
   McpError,
   ReadResourceRequestSchema
 } from "@modelcontextprotocol/sdk/types.js";
-import { pathToFileURL } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { getWorkflowPrompt, listReferenceResources, listWorkflowPrompts, readReferenceResource } from "./discovery.js";
 import { createAppState } from "./state.js";
 import { CompatibleStdioServerTransport } from "./stdio-transport.js";
@@ -22,11 +24,32 @@ import {
   executeTextureTool
 } from "./tools.js";
 
+function resolvePackageVersion(): string {
+  const currentFilePath = fileURLToPath(import.meta.url);
+  const packageJsonPath = path.resolve(path.dirname(currentFilePath), "..", "..", "package.json");
+
+  try {
+    const packageJson = JSON.parse(readFileSync(packageJsonPath, "utf8")) as {
+      version?: unknown;
+    };
+
+    if (typeof packageJson.version === "string" && packageJson.version.length > 0) {
+      return packageJson.version;
+    }
+  } catch {
+    // Fall back to a readable placeholder if package metadata cannot be resolved.
+  }
+
+  return "0.0.0";
+}
+
+export const MCP_SERVER_VERSION = resolvePackageVersion();
+
 export function createMcpServer(): Server {
   const server = new Server(
     {
       name: "texture-mcp",
-      version: "0.1.0"
+      version: MCP_SERVER_VERSION
     },
     {
       capabilities: {

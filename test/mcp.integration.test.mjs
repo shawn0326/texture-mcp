@@ -11,6 +11,7 @@ const __dirname = path.dirname(__filename);
 const projectRoot = path.resolve(__dirname, "..");
 const entryFile = path.join(projectRoot, "dist", "mcp", "index.js");
 const protocolVersion = "2025-03-26";
+const packageVersion = JSON.parse(await readFile(path.join(projectRoot, "package.json"), "utf8")).version;
 
 function encodeMessage(message, framing) {
   const payload = JSON.stringify(message);
@@ -202,6 +203,8 @@ test("mcp integration: initialize and list tools", async () => {
     assert.ok(session.initializeResult.capabilities.tools);
     assert.ok(session.initializeResult.capabilities.resources);
     assert.ok(session.initializeResult.capabilities.prompts);
+    assert.equal(session.initializeResult.serverInfo.name, "texture-mcp");
+    assert.equal(session.initializeResult.serverInfo.version, packageVersion);
     assert.equal(session.initializeResult.capabilities.resources.subscribe, false);
     assert.equal(session.initializeResult.capabilities.resources.listChanged, false);
     assert.equal(session.initializeResult.capabilities.prompts.listChanged, false);
@@ -239,6 +242,7 @@ test("mcp integration: initialize and list tools over content-length framing", a
     assert.ok(session.initializeResult.capabilities.tools);
     assert.ok(session.initializeResult.capabilities.resources);
     assert.ok(session.initializeResult.capabilities.prompts);
+    assert.equal(session.initializeResult.serverInfo.version, packageVersion);
 
     const toolListResult = await session.request("tools/list", {});
     const toolNames = toolListResult.tools.map((tool) => tool.name).sort();
