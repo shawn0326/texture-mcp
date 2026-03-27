@@ -270,7 +270,7 @@ export function buildRecipeExamplesMarkdown(): string {
     "- In `preset-first`, use `resolve_preset` only when you need to keep editing the compiled recipe.",
     "- Use `recipe-first` when you already need exact layer ordering and geometry.",
     "- Run `validate_recipe` before `generate_texture` when authoring custom recipes or when continuing from `resolve_preset` output.",
-    "- When using `generate_texture` in `recipe` mode, pass the recipe as an object. Do not JSON-stringify it.",
+    "- When using `generate_texture` in `recipe` mode, prefer passing the recipe as an object. Valid JSON strings are also accepted for host compatibility.",
     "- Call `export_texture` only after a successful `generate_texture` step in the same session.",
     "",
     ...sections

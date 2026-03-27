@@ -1,6 +1,7 @@
 import { generateTextureInputSchema, resolvePresetInputSchema, resolvePresetOutputSchema } from "./schema.js";
 import { DEFAULT_TEXTURE_SEED } from "./limits.js";
 import { getPresetDefinition } from "./presets.js";
+import { parseRecipeLikeInput } from "./recipe-input.js";
 import { normalizeRecipe } from "./recipe.js";
 import { renderRecipe } from "./renderer.js";
 import type {
@@ -62,7 +63,7 @@ function resolveRecipe(input: GenerateTextureInput): {
 } {
   if (input.mode === "recipe") {
     return {
-      recipe: normalizeRecipe(input.recipe)
+      recipe: normalizeRecipe(parseRecipeLikeInput(input.recipe) as never)
     };
   }
 

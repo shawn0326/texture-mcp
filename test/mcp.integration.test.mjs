@@ -546,8 +546,55 @@ test("mcp integration: placeholder info tools return structured results", async 
     assert.equal(validateResult.structuredContent.readyForGeneration, true);
     assert.equal(validateResult.structuredContent.normalizedRecipe.layers[0].type, "text");
     assert.match(validateResult.content[0].text, /normalizedRecipe/);
-    assert.match(validateResult.content[0].text, /Do not JSON-stringify the recipe/i);
+    assert.match(validateResult.content[0].text, /Passing the object directly is preferred/i);
     assert.match(validateResult.content[0].text, /generate_texture/);
+
+    const validateStringResult = await session.request("tools/call", {
+      name: "validate_recipe",
+      arguments: {
+        recipe: JSON.stringify({
+          version: 1,
+          layers: [
+            {
+              type: "circle",
+              center: { x: 0.5, y: 0.5 },
+              radius: 0.2,
+              color: "#ffffff"
+            }
+          ]
+        })
+      }
+    });
+
+    assert.notEqual(validateStringResult.isError, true, session.getStderr());
+    assert.equal(validateStringResult.structuredContent.valid, true);
+    assert.equal(validateStringResult.structuredContent.normalizedRecipe.layers[0].type, "circle");
+
+    const generateStringResult = await session.request("tools/call", {
+      name: "generate_texture",
+      arguments: {
+        mode: "recipe",
+        recipe: JSON.stringify({
+          version: 1,
+          layers: [
+            {
+              type: "circle",
+              center: { x: 0.5, y: 0.5 },
+              radius: 0.2,
+              color: "#ffffff"
+            }
+          ]
+        }),
+        width: 64,
+        height: 64,
+        seed: 22
+      }
+    });
+
+    assert.notEqual(generateStringResult.isError, true, session.getStderr());
+    assert.equal(generateStringResult.structuredContent.mode, "recipe");
+    assert.equal(generateStringResult.structuredContent.seed, 22);
+    assert.equal(generateStringResult.structuredContent.recipeLayerCount, 1);
   } finally {
     await session.close();
   }
@@ -683,19 +730,19 @@ test("mcp integration: invalid calls return tool errors", async () => {
     assert.match(recipeModeWithPresetResult.content[0].text, /Invalid arguments/);
     assert.match(recipeModeWithPresetResult.content[0].text, /preset|params/i);
 
-    const stringifiedRecipeGenerateResult = await session.request("tools/call", {
+    const malformedRecipeGenerateResult = await session.request("tools/call", {
       name: "generate_texture",
       arguments: {
         mode: "recipe",
-        recipe: "{\"version\":1,\"layers\":[]}",
+        recipe: "{\"version\":1,\"layers\":[",
         width: 64,
         height: 64
       }
     });
 
-    assert.equal(stringifiedRecipeGenerateResult.isError, true, session.getStderr());
-    assert.match(stringifiedRecipeGenerateResult.content[0].text, /Recipe must be an object/i);
-    assert.match(stringifiedRecipeGenerateResult.content[0].text, /JSON string/i);
+    assert.equal(malformedRecipeGenerateResult.isError, true, session.getStderr());
+    assert.match(malformedRecipeGenerateResult.content[0].text, /could not be parsed/i);
+    assert.match(malformedRecipeGenerateResult.content[0].text, /valid JSON/i);
 
     const invalidRecipeResult = await session.request("tools/call", {
       name: "validate_recipe",
@@ -722,16 +769,16 @@ test("mcp integration: invalid calls return tool errors", async () => {
     assert.equal(invalidRecipeResult.structuredContent.errorCount > 0, true);
     assert.match(invalidRecipeResult.content[0].text, /get_layer_schema/);
 
-    const stringifiedRecipeValidateResult = await session.request("tools/call", {
+    const malformedRecipeValidateResult = await session.request("tools/call", {
       name: "validate_recipe",
       arguments: {
-        recipe: "{\"version\":1,\"layers\":[]}"
+        recipe: "{\"version\":1,\"layers\":["
       }
     });
 
-    assert.equal(stringifiedRecipeValidateResult.isError, true, session.getStderr());
-    assert.match(stringifiedRecipeValidateResult.content[0].text, /Recipe must be an object/i);
-    assert.match(stringifiedRecipeValidateResult.content[0].text, /JSON string/i);
+    assert.equal(malformedRecipeValidateResult.isError, true, session.getStderr());
+    assert.match(malformedRecipeValidateResult.content[0].text, /could not be parsed/i);
+    assert.match(malformedRecipeValidateResult.content[0].text, /valid JSON/i);
   } finally {
     await session.close();
   }

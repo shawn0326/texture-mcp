@@ -273,7 +273,7 @@ export function createTextureToolDefinitions(state: AppState): TextureToolDefini
       execute: async (input) => {
         const result = validateRecipe((input as { recipe: unknown }).recipe);
         const text = result.valid
-          ? `Recipe is valid. Use \`normalizedRecipe\` as the canonical object form and \`stats\` for complexity checks, then pass \`normalizedRecipe\` directly to \`generate_texture\` with \`mode: "recipe"\`. Do not JSON-stringify the recipe.`
+          ? `Recipe is valid. Use \`normalizedRecipe\` as the canonical object form and \`stats\` for complexity checks, then pass \`normalizedRecipe\` directly to \`generate_texture\` with \`mode: "recipe"\`. Passing the object directly is preferred, although valid JSON strings are also accepted.`
           : `Recipe is invalid. Review these issues before rendering:\n${result.errors.map((error) => `- ${error.path}: ${error.message}`).join("\n")}\nUse \`get_layer_schema\` for the relevant layer type when you need field-level constraints or examples.`;
 
         return createToolSuccess(text, result);

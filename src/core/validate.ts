@@ -1,4 +1,5 @@
 import { ZodError } from "zod/v4";
+import { parseRecipeLikeInput } from "./recipe-input.js";
 import { getRecipeStats, normalizeRecipe } from "./recipe.js";
 import type { ValidateRecipeOutput, ValidationIssue } from "./types.js";
 
@@ -30,7 +31,7 @@ function toValidationIssues(error: ZodError): ValidationIssue[] {
 
 export function validateRecipe(input: unknown): ValidateRecipeOutput {
   try {
-    const normalizedRecipe = normalizeRecipe(input as never);
+    const normalizedRecipe = normalizeRecipe(parseRecipeLikeInput(input) as never);
 
     return {
       valid: true,

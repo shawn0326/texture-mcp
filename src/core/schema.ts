@@ -6,6 +6,7 @@ import {
   MAX_TEXTURE_PIXELS
 } from "./limits.js";
 import { getColorValidationMessage } from "./color.js";
+import { parseRecipeLikeInput } from "./recipe-input.js";
 import { getRecipeStats } from "./recipe-analysis.js";
 import type { LayerSpec } from "./types.js";
 
@@ -211,15 +212,19 @@ export const recipeSchema = z
   .superRefine(validateRecipeComplexity);
 
 const recipeToolInputSchema = z.unknown().superRefine((value, context) => {
-  if (typeof value === "string") {
+  let parsedInput = value;
+
+  try {
+    parsedInput = parseRecipeLikeInput(value);
+  } catch (error: unknown) {
     context.addIssue({
       code: "custom",
-      message: "Recipe must be an object. Pass the recipe object directly, not a JSON string."
+      message: error instanceof Error ? error.message : "Invalid recipe input."
     });
     return;
   }
 
-  const parsedRecipe = recipeSchema.safeParse(value);
+  const parsedRecipe = recipeSchema.safeParse(parsedInput);
 
   if (parsedRecipe.success) {
     return;
@@ -235,14 +240,14 @@ const recipeToolInputSchema = z.unknown().superRefine((value, context) => {
 });
 
 const recipeObjectOnlyInputSchema = z.unknown().superRefine((value, context) => {
-  if (typeof value !== "string") {
-    return;
+  try {
+    parseRecipeLikeInput(value);
+  } catch (error: unknown) {
+    context.addIssue({
+      code: "custom",
+      message: error instanceof Error ? error.message : "Invalid recipe input."
+    });
   }
-
-  context.addIssue({
-    code: "custom",
-    message: "Recipe must be an object. Pass the recipe object directly, not a JSON string."
-  });
 });
 
 export const renderOptionsSchema = z

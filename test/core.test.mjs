@@ -265,6 +265,27 @@ test("core: validateRecipe returns normalized recipes for valid input", () => {
   assert.equal(result.stats.totalLayers, 1);
 });
 
+test("core: validateRecipe accepts a recipe passed as a JSON string", () => {
+  const result = validateRecipe(
+    JSON.stringify({
+      version: 1,
+      layers: [
+        {
+          type: "circle",
+          center: { x: 0.5, y: 0.5 },
+          radius: 0.2,
+          color: "#ffffff"
+        }
+      ]
+    })
+  );
+
+  assert.equal(result.valid, true);
+  assert.equal(result.readyForGeneration, true);
+  assert.equal(result.normalizedRecipe.layers[0].type, "circle");
+  assert.equal(result.stats.totalLayers, 1);
+});
+
 test("core: validateRecipe returns readable errors for invalid input", () => {
   const result = validateRecipe({
     version: 1,
@@ -1381,6 +1402,32 @@ test("core: generateTexture preserves explicit recipe input", () => {
   assert.equal(generated.output.mode, "recipe");
   assert.equal(generated.output.seed, 9);
   assert.equal(generated.output.usedDefaultSeed, false);
+});
+
+test("core: generateTexture accepts a recipe passed as a JSON string", () => {
+  const recipe = {
+    version: 1,
+    layers: [
+      {
+        type: "text",
+        text: "LOCK",
+        origin: { x: 0.1, y: 0.25 },
+        size: { width: 0.8, height: 0.3 },
+        color: "#ffffff"
+      }
+    ]
+  };
+  const generated = generateTexture({
+    mode: "recipe",
+    recipe: JSON.stringify(recipe),
+    width: 64,
+    height: 64,
+    seed: 9
+  });
+
+  assert.deepEqual(generated.recipe, normalizeRecipe(recipe));
+  assert.equal(generated.output.mode, "recipe");
+  assert.equal(generated.output.seed, 9);
 });
 
 test("core: generateTexture uses the default seed when none is provided", () => {
