@@ -35,12 +35,20 @@
   - `list_layer_types`
   - `get_layer_schema`
   - `validate_recipe`
+- 当前已实现的 MCP resources：
+  - `texture://docs/layer-reference`
+  - `texture://docs/preset-playbook`
+  - `texture://docs/recipe-examples`
+  - `texture://docs/workflow-guardrails`
+- 当前已实现的 MCP prompts：
+  - `recommended_preset_workflow`
+  - `recommended_recipe_workflow`
 - 当前已补齐的工程护栏：
   - 贴图尺寸、总像素、layer 数量限制
   - 导出路径的 `workspaceRoot` 约束与 symlink / junction 逃逸拦截
   - 可查询当前 `workspaceRoot`、来源与导出约束，便于宿主联调
   - 默认固定 `seed`，不依赖不可控随机源
-- 当前阶段的开发重点已进入 P2：补充语义文档、资源与完整调用示例。
+- 当前阶段的开发重点已从 P2 文档/资源补齐转入 P3：优先做输入契约与行为边界硬化、跨宿主稳定性验证，以及更贴近 VFX / 粒子工作流的产品增强。
 - 当前已提供一个本地开发用 demo gallery 脚本，可批量导出代表性 preset 图、参数 sweep 与 seed variations 到根目录 `demo`。
 - 当前产品判断：
   - 该工具已具备明确价值，定位应继续聚焦为“适合 AI 调用的、可控可复现的程序化 2D 特效贴图生成工具”。

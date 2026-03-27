@@ -14,6 +14,7 @@ Use it together with the MCP tools:
 - Effect layers transform the current whole canvas result.
 - Most coordinates are normalized to the canvas range `[0, 1]`.
 - Circle and ring radii are normalized to the shorter canvas side.
+- Color fields use a validated deterministic subset: `#rgb`, `#rgba`, `#rrggbb`, `#rrggbbaa`, `rgb(r, g, b)`, `rgba(r, g, b, a)`, or `transparent`.
 - `noise` and `blur` are fullscreen passes, not local modifiers.
 
 ## Summary

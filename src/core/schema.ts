@@ -5,6 +5,7 @@ import {
   MAX_TEXTURE_DIMENSION,
   MAX_TEXTURE_PIXELS
 } from "./limits.js";
+import { getColorValidationMessage } from "./color.js";
 import { getRecipeStats } from "./recipe-analysis.js";
 import type { LayerSpec } from "./types.js";
 
@@ -13,7 +14,18 @@ export const workspaceRootSourceSchema = z.enum(["explicit", "env", "cwd"]);
 export const paramsRecordSchema = z.record(z.string(), z.unknown());
 export const jsonSchemaObjectSchema = z.record(z.string(), z.unknown());
 export const normalizedNumberSchema = z.number().min(0).max(1);
-export const cssColorSchema = z.string().min(1);
+export const cssColorSchema = z.string().superRefine((value, context) => {
+  const validationMessage = getColorValidationMessage(value);
+
+  if (!validationMessage) {
+    return;
+  }
+
+  context.addIssue({
+    code: "custom",
+    message: validationMessage
+  });
+});
 export const size2DSchema = z
   .object({
     width: normalizedNumberSchema,

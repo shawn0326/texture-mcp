@@ -1,3 +1,4 @@
+import { normalizeColorString } from "./color.js";
 import { recipeSchema } from "./schema.js";
 import { getRecipeStats as analyzeRecipeStats } from "./recipe-analysis.js";
 import type { RecipeStats } from "./recipe-analysis.js";
@@ -28,6 +29,7 @@ function normalizeCornerRadius<T extends RectLayer | GradientRectLayer>(layer: T
 function normalizeTextLayer(layer: TextLayer): LayerSpec {
   return {
     ...layer,
+    color: normalizeColorString(layer.color),
     rotation: layer.rotation ?? 0,
     fontFamily: layer.fontFamily ?? "sans-serif",
     fontWeight: layer.fontWeight ?? "normal",
@@ -51,10 +53,28 @@ function normalizeLeafLayer(
 ): LayerSpec {
   switch (layer.type) {
     case "rect":
+      return {
+        ...normalizeCornerRadius(layer),
+        color: normalizeColorString(layer.color)
+      };
     case "gradientRect":
-      return normalizeCornerRadius(layer);
+      return {
+        ...normalizeCornerRadius(layer),
+        colors: layer.colors.map(normalizeColorString)
+      };
     case "text":
       return normalizeTextLayer(layer);
+    case "circle":
+    case "ring":
+      return {
+        ...layer,
+        color: normalizeColorString(layer.color)
+      };
+    case "gradientCircle":
+      return {
+        ...layer,
+        colors: layer.colors.map(normalizeColorString)
+      };
     default:
       return layer;
   }

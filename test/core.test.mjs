@@ -150,7 +150,7 @@ test("core: recipe helpers validate and normalize recipe structures", () => {
         type: "gradientCircle",
         center: { x: 0.5, y: 0.5 },
         radius: 0.2,
-        colors: ["rgba(255, 255, 255, 1)", "rgba(255, 255, 255, 0)"]
+        colors: ["#fff", "transparent"]
       },
       {
         type: "noise",
@@ -161,10 +161,52 @@ test("core: recipe helpers validate and normalize recipe structures", () => {
   const stats = getRecipeStats(recipe);
   const normalized = normalizeRecipe(recipe);
 
-  assert.deepEqual(normalized, recipe);
+  assert.deepEqual(normalized, {
+    version: 1,
+    layers: [
+      {
+        type: "gradientCircle",
+        center: { x: 0.5, y: 0.5 },
+        radius: 0.2,
+        colors: ["rgba(255, 255, 255, 1)", "rgba(0, 0, 0, 0)"]
+      },
+      {
+        type: "noise",
+        amount: 0.15
+      }
+    ]
+  });
   assert.equal(stats.totalLayers, 2);
   assert.equal(stats.leafLayers, 2);
   assert.equal(stats.maxDepth, 1);
+});
+
+test("core: createRecipe normalizes supported color formats to canonical rgba strings", () => {
+  const recipe = createRecipe([
+    {
+      type: "circle",
+      center: { x: 0.5, y: 0.5 },
+      radius: 0.2,
+      color: " #AbC "
+    },
+    {
+      type: "rect",
+      origin: { x: 0.1, y: 0.2 },
+      size: { width: 0.3, height: 0.2 },
+      color: "rgb(12, 34, 56)"
+    },
+    {
+      type: "gradientRect",
+      origin: { x: 0.1, y: 0.5 },
+      size: { width: 0.8, height: 0.1 },
+      direction: "horizontal",
+      colors: ["#11223344", "rgba(255, 255, 255, 0.25)"]
+    }
+  ]);
+
+  assert.equal(recipe.layers[0].color, "rgba(170, 187, 204, 1)");
+  assert.equal(recipe.layers[1].color, "rgba(12, 34, 56, 1)");
+  assert.deepEqual(recipe.layers[2].colors, ["rgba(17, 34, 51, 0.266667)", "rgba(255, 255, 255, 0.25)"]);
 });
 
 test("core: createRecipe normalizes rect cornerRadius defaults", () => {
@@ -242,6 +284,33 @@ test("core: validateRecipe returns readable errors for invalid input", () => {
   assert.equal(result.readyForGeneration, false);
   assert.equal(result.errors.length > 0, true);
   assert.match(result.errors[0].path, /^\$/);
+});
+
+test("core: validateRecipe rejects unsupported color formats with field-level errors", () => {
+  const result = validateRecipe({
+    version: 1,
+    layers: [
+      {
+        type: "circle",
+        center: { x: 0.5, y: 0.5 },
+        radius: 0.2,
+        color: "blue"
+      },
+      {
+        type: "gradientRect",
+        origin: { x: 0.1, y: 0.4 },
+        size: { width: 0.8, height: 0.2 },
+        direction: "horizontal",
+        colors: ["#fff", "rgba(255, 255, 255, 1.5)"]
+      }
+    ]
+  });
+
+  assert.equal(result.valid, false);
+  assert.equal(result.readyForGeneration, false);
+  assert.equal(result.errors.some((issue) => issue.path === "$.layers[0].color"), true);
+  assert.equal(result.errors.some((issue) => issue.path === "$.layers[1].colors[1]"), true);
+  assert.equal(result.errors.some((issue) => /Supported formats/.test(issue.message)), true);
 });
 
 test("core: createRecipe rejects unsupported rotation fields on non-rotatable layers", () => {

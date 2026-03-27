@@ -9,6 +9,7 @@ The examples are intentionally compact and designed to be copied into MCP tool c
 - Use `recipe` mode for exact layer ordering and geometry.
 - Run `validate_recipe` before `generate_texture` when authoring custom recipes.
 - Omit `seed` only when you are happy with the fixed default seed.
+- Recipe color inputs should use the validated subset: `#rgb`, `#rgba`, `#rrggbb`, `#rrggbbaa`, `rgb(...)`, `rgba(...)`, or `transparent`.
 
 ## Example 1: Fast Glow Preset
 

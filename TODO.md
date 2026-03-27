@@ -2,11 +2,11 @@
 
 使用 `[x]` / `[ ]` 标记完成状态。
 
-## 当前建议先做
+## 当前建议优先做
 
-- [x] 先补一版稳定文档资源：`layer reference`、`preset playbook`、`recipe examples`，把现有 layer / preset 元数据整理成 AI 和人都能直接消费的说明。
-- [x] 在文档落地后，再评估映射为 MCP resources；如果宿主暂不支持，至少保证 `README` 之外还有可单独引用的结构化资料。
-- [x] 结合黑盒联调继续打磨查询类 tools 的返回字段、错误信息和提示文案，重点提升 AI 首轮调用成功率。
+- [ ] 收紧颜色字段校验与标准化，不再只停留在“非空字符串”层面；至少覆盖 draw layer 的 `color` / `colors` 输入与可读错误信息。
+- [ ] 补齐颜色非法值、`noise` alpha 语义、`text` 宿主字体差异等行为测试，优先对齐 `validate_recipe`、renderer 与 README 的口径。
+- [ ] 结合一次真实宿主联调，确认 runtime MCP resources / prompts 的可发现性与实际收益，再决定是否继续扩 prompts 面积。
 
 ## P2 文档与可发现性
 
@@ -42,6 +42,5 @@
 - [ ] 增加更多图层与组合场景的像素测试，尤其是 `blur`、`noise`、`gradientCircle`、`gradientRect` 的边界情况。
 - [ ] 补充颜色参数非法值、宿主差异风险字段、`noise` alpha 语义等行为测试，提升 `validate_recipe` 与 renderer 的一致性。
 - [ ] 视需要补充 golden image / snapshot 测试，用于 renderer 回归比较。
-- [ ] 如需对外展示，可补一个会保留产物的 demo 脚本或示例命令。
 - [x] 补一个批量导出 preset gallery / 参数 sweep / seed variations 的演示脚本，服务快速 demo 与回归观察。
 - [x] 在 demo gallery 中补充 `rotation` 相关示意图，便于快速确认图元旋转不是字段摆设。

@@ -1,4 +1,5 @@
 import * as z from "zod/v4";
+import { getSupportedColorFormatsText } from "./color.js";
 import {
   blurLayerSchema,
   circleLayerSchema,
@@ -22,6 +23,8 @@ type LayerDefinition = Omit<
 > & {
   schemaDefinition: z.ZodTypeAny;
 };
+
+const supportedColorFormatsText = getSupportedColorFormatsText();
 
 function toSerializableSchema(schema: z.ZodTypeAny): JsonSchemaObject {
   return z.toJSONSchema(schema) as JsonSchemaObject;
@@ -47,7 +50,7 @@ const layerDefinitions: LayerDefinition[] = [
     parameterSemantics: {
       center: "Normalized center point of the circle in canvas space.",
       radius: "Normalized radius relative to the shorter canvas side.",
-      colors: "Gradient colors distributed evenly from center to edge."
+      colors: `Gradient colors distributed evenly from center to edge. Each item must use a validated color string. ${supportedColorFormatsText}`
     },
     constraints: [
       {
@@ -80,7 +83,7 @@ const layerDefinitions: LayerDefinition[] = [
     parameterSemantics: {
       center: "Normalized center point of the circle in canvas space.",
       radius: "Normalized radius relative to the shorter canvas side.",
-      color: "CSS color string for the fill."
+      color: `Validated color string for the fill. ${supportedColorFormatsText}`
     },
     constraints: [],
     applicationScope: "local",
@@ -108,7 +111,7 @@ const layerDefinitions: LayerDefinition[] = [
       center: "Normalized center point of the ring in canvas space.",
       innerRadius: "Normalized inner radius relative to the shorter canvas side.",
       outerRadius: "Normalized outer radius relative to the shorter canvas side.",
-      color: "CSS color string for the ring body."
+      color: `Validated color string for the ring body. ${supportedColorFormatsText}`
     },
     constraints: [
       {
@@ -143,7 +146,7 @@ const layerDefinitions: LayerDefinition[] = [
       size: "Normalized width and height of the rectangle.",
       cornerRadius: "Optional normalized corner radius relative to the shorter side of the rectangle.",
       rotation: "Optional clockwise rotation in degrees around the rectangle's own center.",
-      color: "CSS color string for the fill."
+      color: `Validated color string for the fill. ${supportedColorFormatsText}`
     },
     constraints: [],
     applicationScope: "local",
@@ -176,7 +179,7 @@ const layerDefinitions: LayerDefinition[] = [
       cornerRadius: "Optional normalized corner radius relative to the shorter side of the rectangle.",
       rotation: "Optional clockwise rotation in degrees around the rectangle's own center.",
       direction: "Gradient direction, limited to horizontal or vertical.",
-      colors: "Gradient colors distributed evenly along the chosen direction."
+      colors: `Gradient colors distributed evenly along the chosen direction. Each item must use a validated color string. ${supportedColorFormatsText}`
     },
     constraints: [
       {
@@ -218,7 +221,7 @@ const layerDefinitions: LayerDefinition[] = [
       origin: "Normalized top-left corner of the text layout box.",
       size: "Normalized width and height of the text layout box.",
       rotation: "Optional clockwise rotation in degrees around the text layout box center.",
-      color: "CSS color string used for the text fill.",
+      color: `Validated color string used for the text fill. ${supportedColorFormatsText}`,
       fontFamily: "Canvas/CSS font family string. Rendering may vary across hosts based on available fonts.",
       fontSize: "Optional normalized font size relative to canvas height. Defaults to roughly 80% of the box height.",
       fontWeight: "Optional font weight, limited to normal or bold.",
