@@ -50,6 +50,8 @@
   - 可查询当前 `workspaceRoot`、来源与导出约束，便于宿主联调
   - 默认固定 `seed`，不依赖不可控随机源
 - 当前颜色输入已收紧为可预测受控子集，支持 `#rgb` / `#rgba` / `#rrggbb` / `#rrggbbaa` / `rgb(...)` / `rgba(...)` / `transparent`，并在 recipe 标准化阶段统一为 canonical `rgba(...)` 字符串。
+- 当前 recipe 相关 MCP prompt 与 tool 描述已显式前置 layer 总数上限，减少 AI 先超上限再返工的情况。
+- 当前 `generate_texture(mode: "recipe")` 与 `validate_recipe` 已兼容合法的 recipe JSON string 输入，并在内部解析后继续走对象校验与标准化；对外仍优先推荐直接传 recipe object。
 - 当前已明确的行为边界：
   - `noise` 是会按 `amount` 抬高最小 alpha floor 的全屏噪声 pass，而不只是 RGB 扰动
   - `text` 的稳定契约应聚焦布局框位置、对齐、裁剪与旋转；字形细节仍可能因宿主字体可用性与 fallback 策略而异
@@ -57,6 +59,8 @@
   - JSONL 与 `Content-Length` 两类 `stdio` framing 的黑盒握手与基础 tool 调用
   - 颜色字段校验与标准化、常见非法值错误路径
   - `resolve_preset` 的参数合并、标准化 recipe 返回、以及与 `generate_texture(mode: "preset")` 的编译一致性
+  - recipe object 与合法 JSON string 两类输入形态在 `validate_recipe` / `generate_texture(mode: "recipe")` 下的兼容路径，以及非法 JSON string 的错误路径
+  - MCP prompt / tool 描述中对 layer 上限等关键 guardrail 的暴露
   - `text` 的布局、旋转、裁剪与不可用字体回退行为
   - 多层组合场景下 `blur`、`noise`、`gradientCircle`、`gradientRect` 的基础像素回归
 - 当前阶段的开发重点已从 P2 文档/资源补齐转入 P3：优先做输入契约与行为边界硬化、跨宿主稳定性验证，以及更贴近 VFX / 粒子工作流的产品增强。
@@ -98,6 +102,7 @@
   - `get_preset_schema` 返回的“必填参数”语义应与运行时默认值行为保持一致。
 - 优先增强可预测性与跨宿主稳定性，例如：
   - 保持颜色字段校验与标准化为可预测受控子集，避免依赖宿主侧宽松 CSS 解析。
+  - 对 AI 高频误用但可安全纠正的输入形态，可谨慎提供窄兼容；兼容应保持确定性、可测试、且不放宽核心契约。
   - 继续通过真实宿主联调观察 `noise`、`text` 等 layer 的剩余差异，并逐步收紧稳定契约。
 - 面向快速 demo 的能力优先级高于通用编辑器能力，优先补：
   - 更适合展示的高语义 preset
@@ -119,6 +124,8 @@
   - layer catalog / schema metadata，承载 `list_layer_types`、`get_layer_schema` 所需的结构化语义信息。
 - `src/core/recipe.ts`
   - Recipe 构造与标准化逻辑。
+- `src/core/recipe-input.ts`
+  - recipe 输入兼容层，负责将合法 JSON string 解码为 object，并对明显错误的 recipe 字符串给出稳定错误信息。
 - `src/core/recipe-analysis.ts`
   - Recipe 统计与复杂度分析逻辑，例如总 layer 数与复杂度汇总。
 - `src/core/renderer.ts`
@@ -176,6 +183,7 @@
 - 在 `src/core/types.ts` 中补充对应输入输出类型。
 - 在 `src/core/schema.ts` 中补充 input/output schema。
 - 在 `src/mcp/tools.ts` 中注册工具定义、描述、输入输出 schema 与执行逻辑。
+- 如果 tool 输入需要兼容 AI 常见误用，例如本来应传 object 却被字符串化，优先采用窄兼容并保持 deterministic；不要为了“更智能”引入模糊解析。
 - 返回结果时优先提供稳定的 `structuredContent`，文本内容只做简要说明。
 - 工具报错优先返回可读、可定位的错误信息，不要吞错。
 - 如工具属于查询语义类能力，优先复用 `src/core/layers.ts` / `src/core/presets.ts` 中的结构化元数据，不要把说明散落在 tool 内部硬编码。
@@ -202,6 +210,7 @@
 - 修改 recipe、renderer、export、MCP tool 时，优先补测试或更新现有测试。
 - 至少覆盖：
   - 输入 schema 校验
+  - 兼容输入路径与对应错误路径，例如 object / JSON string 双路径、非法 JSON、以及解码后类型不符
   - 未知 preset / 未知 tool 的错误路径
   - 导出路径必须为 workspace 内相对路径
   - 新图元或新 preset 的基本渲染行为

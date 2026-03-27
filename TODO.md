@@ -8,6 +8,8 @@
 - [ ] 若后续有多 workspace 或宿主集成需求，扩展 `workspaceRoot` 的来源策略，例如多根目录或宿主显式注入。
 - [ ] 在已提供 `resolve_preset` 之后，视真实调用情况再评估是否还有必要为 `generate_texture` 增加 `includeResolvedRecipe` 一类可选回包。
 - [ ] 评估是否提供更轻量的生成结果检查或引用信息，让 AI 在生成后不必立刻落盘也能继续比较、选择和导出。
+- [ ] 跟踪真实宿主中 recipe 输入的常见误用分布，确认当前“兼容合法 JSON string、仍优先推荐 object”的策略是否已足够，或是否还需要补更明确的 structured hint / debug 信息。
+- [ ] 继续观察 MCP prompt / tool 描述中的关键 guardrail 是否足够支撑首轮成功率，尤其是 layer 上限、recipe 传参形态与 preset-first / recipe-first 分流。
 
 ## 产品增强
 
