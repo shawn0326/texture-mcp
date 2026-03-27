@@ -313,6 +313,44 @@ test("core: validateRecipe rejects unsupported color formats with field-level er
   assert.equal(result.errors.some((issue) => /Supported formats/.test(issue.message)), true);
 });
 
+test("core: validateRecipe distinguishes common invalid color failure modes", () => {
+  const result = validateRecipe({
+    version: 1,
+    layers: [
+      {
+        type: "circle",
+        center: { x: 0.5, y: 0.5 },
+        radius: 0.2,
+        color: "#12"
+      },
+      {
+        type: "rect",
+        origin: { x: 0.15, y: 0.2 },
+        size: { width: 0.4, height: 0.25 },
+        color: "rgb(256, 0, 0)"
+      },
+      {
+        type: "text",
+        text: "TEST",
+        origin: { x: 0.1, y: 0.3 },
+        size: { width: 0.6, height: 0.2 },
+        color: "hsl(0, 100%, 50%)"
+      }
+    ]
+  });
+
+  assert.equal(result.valid, false);
+  assert.equal(result.errors.some((issue) => issue.path === "$.layers[0].color" && /Hex colors/.test(issue.message)), true);
+  assert.equal(
+    result.errors.some((issue) => issue.path === "$.layers[1].color" && /RGB channels must be integers/.test(issue.message)),
+    true
+  );
+  assert.equal(
+    result.errors.some((issue) => issue.path === "$.layers[2].color" && /Unsupported color function/.test(issue.message)),
+    true
+  );
+});
+
 test("core: createRecipe rejects unsupported rotation fields on non-rotatable layers", () => {
   assert.throws(
     () =>
@@ -598,6 +636,48 @@ test("core: rotated gradientRect rotates the gradient with the layer", () => {
   assert.notDeepEqual(topPixel, bottomPixel);
 });
 
+test("core: layered beam recipe keeps a crisp core over a blurred body", () => {
+  const canvas = renderRecipeToCanvas(
+    createRecipe([
+      {
+        type: "gradientRect",
+        origin: { x: 0.12, y: 0.4 },
+        size: { width: 0.76, height: 0.18 },
+        direction: "horizontal",
+        colors: [
+          "rgba(0, 220, 255, 0)",
+          "rgba(120, 235, 255, 0.7)",
+          "rgba(255, 255, 255, 1)",
+          "rgba(120, 235, 255, 0.7)",
+          "rgba(0, 220, 255, 0)"
+        ]
+      },
+      {
+        type: "blur",
+        radius: 0.04
+      },
+      {
+        type: "rect",
+        origin: { x: 0.12, y: 0.475 },
+        size: { width: 0.76, height: 0.03 },
+        color: "rgba(255, 252, 245, 0.9)"
+      }
+    ]),
+    {
+      width: 128,
+      height: 64,
+      seed: 5
+    }
+  );
+  const corePixel = readPixel(canvas, 64, 31);
+  const blurredShoulderPixel = readPixel(canvas, 64, 23);
+  const outsidePixel = readPixel(canvas, 8, 8);
+
+  assert.equal(corePixel.a > blurredShoulderPixel.a, true);
+  assert.equal(blurredShoulderPixel.a > 0, true);
+  assert.equal(outsidePixel.a, 0);
+});
+
 test("core: text renders inside its layout box", () => {
   const recipe = createRecipe([
     {
@@ -646,6 +726,115 @@ test("core: rotated text still renders around its layout center", () => {
   assert.equal(countOpaquePixels(canvas, 0, 0, 256, 8), 0);
 });
 
+test("core: text clipping constrains overflow to the layout box when clip is enabled", () => {
+  const commonLayer = {
+    type: "text",
+    text: "WIDEWIDE",
+    origin: { x: 0.1, y: 0.3 },
+    size: { width: 0.15, height: 0.2 },
+    color: "rgba(255, 255, 255, 1)",
+    fontFamily: "sans-serif",
+    fontWeight: "bold",
+    fontSize: 0.2,
+    align: "left",
+    verticalAlign: "middle"
+  };
+  const clippedCanvas = renderRecipeToCanvas(
+    createRecipe([
+      {
+        ...commonLayer,
+        clip: true
+      }
+    ]),
+    {
+      width: 320,
+      height: 160,
+      seed: 1
+    }
+  );
+  const unclippedCanvas = renderRecipeToCanvas(
+    createRecipe([
+      {
+        ...commonLayer,
+        clip: false
+      }
+    ]),
+    {
+      width: 320,
+      height: 160,
+      seed: 1
+    }
+  );
+
+  assert.equal(countOpaquePixels(clippedCanvas, 90, 40, 80, 48), 0);
+  assert.equal(countOpaquePixels(unclippedCanvas, 90, 40, 80, 48) > 0, true);
+});
+
+test("core: text still renders when the requested font family is unavailable", () => {
+  const canvas = renderRecipeToCanvas(
+    createRecipe([
+      {
+        type: "text",
+        text: "FALLBACK",
+        origin: { x: 0.12, y: 0.24 },
+        size: { width: 0.76, height: 0.22 },
+        color: "rgba(255, 255, 255, 1)",
+        fontFamily: "texture-mcp-font-that-should-not-exist",
+        fontWeight: "bold",
+        align: "center",
+        verticalAlign: "middle",
+        clip: true
+      }
+    ]),
+    {
+      width: 320,
+      height: 160,
+      seed: 1
+    }
+  );
+
+  assert.equal(countOpaquePixels(canvas, 40, 30, 240, 60) > 0, true);
+});
+
+test("core: glow-style layered circle keeps a bright center with a softened halo", () => {
+  const canvas = renderRecipeToCanvas(
+    createRecipe([
+      {
+        type: "gradientCircle",
+        center: { x: 0.5, y: 0.5 },
+        radius: 0.26,
+        colors: [
+          "rgba(255, 255, 255, 0.95)",
+          "rgba(255, 190, 80, 0.35)",
+          "rgba(255, 190, 80, 0)"
+        ]
+      },
+      {
+        type: "blur",
+        radius: 0.03
+      },
+      {
+        type: "circle",
+        center: { x: 0.5, y: 0.5 },
+        radius: 0.08,
+        color: "rgba(255, 250, 245, 0.95)"
+      }
+    ]),
+    {
+      width: 96,
+      height: 96,
+      seed: 2
+    }
+  );
+  const centerPixel = readPixel(canvas, 48, 48);
+  const haloPixel = readPixel(canvas, 68, 48);
+  const farPixel = readPixel(canvas, 8, 8);
+
+  assert.equal(centerPixel.a > haloPixel.a, true);
+  assert.equal(haloPixel.a > farPixel.a, true);
+  assert.equal(farPixel.a, 0);
+});
+
 test("core: noise lifts alpha across the current canvas", () => {
   const recipe = createRecipe([
     {
@@ -663,6 +852,86 @@ test("core: noise lifts alpha across the current canvas", () => {
   assert.equal(samplePixel.a >= Math.round(0.25 * 96), true);
   assert.equal(samplePixel.r, samplePixel.g);
   assert.equal(samplePixel.g, samplePixel.b);
+});
+
+test("core: noise preserves higher existing alpha while perturbing grayscale channels together", () => {
+  const recipe = createRecipe([
+    {
+      type: "rect",
+      origin: { x: 0.25, y: 0.25 },
+      size: { width: 0.5, height: 0.5 },
+      color: "rgba(120, 120, 120, 0.8)"
+    },
+    {
+      type: "noise",
+      amount: 0.1
+    }
+  ]);
+  const canvas = renderRecipeToCanvas(recipe, {
+    width: 32,
+    height: 32,
+    seed: 7
+  });
+  const samplePixel = readPixel(canvas, 16, 16);
+
+  assert.equal(samplePixel.a, 204);
+  assert.equal(samplePixel.r, samplePixel.g);
+  assert.equal(samplePixel.g, samplePixel.b);
+});
+
+test("core: noise with zero amount leaves a transparent canvas unchanged", () => {
+  const recipe = createRecipe([
+    {
+      type: "noise",
+      amount: 0
+    }
+  ]);
+  const canvas = renderRecipeToCanvas(recipe, {
+    width: 16,
+    height: 16,
+    seed: 3
+  });
+  const samplePixel = readPixel(canvas, 8, 8);
+
+  assert.deepEqual(samplePixel, {
+    r: 0,
+    g: 0,
+    b: 0,
+    a: 0
+  });
+});
+
+test("core: noise followed by blur produces a softened noisy glow without losing the alpha floor", () => {
+  const canvas = renderRecipeToCanvas(
+    createRecipe([
+      {
+        type: "gradientCircle",
+        center: { x: 0.5, y: 0.5 },
+        radius: 0.22,
+        colors: ["rgba(255, 255, 255, 0.8)", "rgba(255, 255, 255, 0)"]
+      },
+      {
+        type: "noise",
+        amount: 0.18
+      },
+      {
+        type: "blur",
+        radius: 0.03
+      }
+    ]),
+    {
+      width: 64,
+      height: 64,
+      seed: 9
+    }
+  );
+  const centerPixel = readPixel(canvas, 32, 32);
+  const outerPixel = readPixel(canvas, 4, 4);
+
+  assert.equal(centerPixel.a > outerPixel.a, true);
+  assert.equal(outerPixel.a >= Math.round(0.18 * 96), true);
+  assert.equal(Math.abs(outerPixel.r - outerPixel.g) <= 1, true);
+  assert.equal(Math.abs(outerPixel.g - outerPixel.b) <= 1, true);
 });
 
 test("core: renderRecipe is deterministic for the same seed", () => {

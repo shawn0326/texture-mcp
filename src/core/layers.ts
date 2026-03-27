@@ -222,7 +222,7 @@ const layerDefinitions: LayerDefinition[] = [
       size: "Normalized width and height of the text layout box.",
       rotation: "Optional clockwise rotation in degrees around the text layout box center.",
       color: `Validated color string used for the text fill. ${supportedColorFormatsText}`,
-      fontFamily: "Canvas/CSS font family string. Rendering may vary across hosts based on available fonts.",
+      fontFamily: "Canvas/CSS font family string. Exact glyph appearance may vary across hosts based on available fonts and fallback behavior.",
       fontSize: "Optional normalized font size relative to canvas height. Defaults to roughly 80% of the box height.",
       fontWeight: "Optional font weight, limited to normal or bold.",
       fontStyle: "Optional font style, limited to normal or italic.",
@@ -241,6 +241,7 @@ const layerDefinitions: LayerDefinition[] = [
     commonUses: ["panel labels", "HUD text", "damage numbers", "simple UI titles"],
     compositionNotes: [
       "Use multiple `text` layers with different colors and offsets if you want faux outlines or shadows.",
+      "Treat the stable contract as layout box placement, alignment, rotation, and clipping, not exact glyph metrics across hosts.",
       "Place `blur` after text layers if you want the whole text result softened or bloomed.",
       "Use `rotation` for tilted warning labels or angled HUD callouts."
     ],
@@ -267,7 +268,7 @@ const layerDefinitions: LayerDefinition[] = [
     schemaDefinition: noiseLayerSchema,
     primaryParameters: ["amount"],
     parameterSemantics: {
-      amount: "Normalized intensity of the noise perturbation."
+      amount: "Normalized intensity of the grayscale noise perturbation. Also raises a minimum alpha floor across the current canvas result."
     },
     constraints: [],
     applicationScope: "fullscreen",
@@ -275,6 +276,7 @@ const layerDefinitions: LayerDefinition[] = [
     commonUses: ["grain", "breakup", "smoke texture variation"],
     compositionNotes: [
       "Affects the current whole-canvas result, not a future isolated pass.",
+      "Raises a minimum alpha floor based on `amount`, so fully transparent pixels can become faintly visible after the pass.",
       "Usually placed before `blur` when you want a softened noisy texture."
     ],
     examples: [

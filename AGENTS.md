@@ -48,6 +48,15 @@
   - 导出路径的 `workspaceRoot` 约束与 symlink / junction 逃逸拦截
   - 可查询当前 `workspaceRoot`、来源与导出约束，便于宿主联调
   - 默认固定 `seed`，不依赖不可控随机源
+- 当前颜色输入已收紧为可预测受控子集，支持 `#rgb` / `#rgba` / `#rrggbb` / `#rrggbbaa` / `rgb(...)` / `rgba(...)` / `transparent`，并在 recipe 标准化阶段统一为 canonical `rgba(...)` 字符串。
+- 当前已明确的行为边界：
+  - `noise` 是会按 `amount` 抬高最小 alpha floor 的全屏噪声 pass，而不只是 RGB 扰动
+  - `text` 的稳定契约应聚焦布局框位置、对齐、裁剪与旋转；字形细节仍可能因宿主字体可用性与 fallback 策略而异
+- 当前测试已覆盖：
+  - JSONL 与 `Content-Length` 两类 `stdio` framing 的黑盒握手与基础 tool 调用
+  - 颜色字段校验与标准化、常见非法值错误路径
+  - `text` 的布局、旋转、裁剪与不可用字体回退行为
+  - 多层组合场景下 `blur`、`noise`、`gradientCircle`、`gradientRect` 的基础像素回归
 - 当前阶段的开发重点已从 P2 文档/资源补齐转入 P3：优先做输入契约与行为边界硬化、跨宿主稳定性验证，以及更贴近 VFX / 粒子工作流的产品增强。
 - 当前已提供一个本地开发用 demo gallery 脚本，可批量导出代表性 preset 图、参数 sweep 与 seed variations 到根目录 `demo`。
 - 当前产品判断：
@@ -86,8 +95,8 @@
   - `generate_texture` 在不同 mode 下应更严格地拒绝无关字段，而不是静默忽略。
   - `get_preset_schema` 返回的“必填参数”语义应与运行时默认值行为保持一致。
 - 优先增强可预测性与跨宿主稳定性，例如：
-  - 颜色字段校验不要只停留在“非空字符串”层面。
-  - `noise`、`text` 等 layer 的行为边界要更明确，并逐步减少宿主差异。
+  - 保持颜色字段校验与标准化为可预测受控子集，避免依赖宿主侧宽松 CSS 解析。
+  - 继续通过真实宿主联调观察 `noise`、`text` 等 layer 的剩余差异，并逐步收紧稳定契约。
 - 面向快速 demo 的能力优先级高于通用编辑器能力，优先补：
   - 更适合展示的高语义 preset
   - 批量导出示例 / preset gallery / demo 脚本

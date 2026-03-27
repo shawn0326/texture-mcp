@@ -157,6 +157,7 @@ Single-line text drawn inside a normalized layout box.
 - Constraints: `text` must be non-empty and at most 256 characters
 - Notes:
   - Rendering may vary by host because font availability is host-dependent
+  - Stable expectations should focus on layout box placement, alignment, rotation, and clipping rather than exact glyph shape
   - Use multiple `text` layers with offsets for simple shadow or outline tricks
   - `rotation` rotates the whole layout box around its center in degrees
   - Put `blur` after text only if you want the whole text result softened
@@ -186,6 +187,7 @@ Fullscreen noise pass over the current canvas result.
 - Required: `amount`
 - Notes:
   - This affects everything already drawn
+  - It perturbs RGB channels equally and also raises a minimum alpha floor based on `amount`
   - Usually applied before `blur` when building smoke or dirty glow textures
   - Best used in moderate amounts so it adds breakup without destroying the shape
 

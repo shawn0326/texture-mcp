@@ -66,8 +66,9 @@ Notes:
 - The recipe DSL is intentionally small and flat.
 - Recipe color inputs use a deterministic validated subset rather than arbitrary CSS parsing: `#rgb`, `#rgba`, `#rrggbb`, `#rrggbbaa`, `rgb(...)`, `rgba(...)`, or `transparent`.
 - `noise` and `blur` are full-canvas effect layers, not local shape modifiers.
+- `noise` perturbs RGB channels equally and also raises a minimum alpha floor based on `amount`.
 - `rect`, `gradientRect`, and `text` support optional `rotation` in degrees around their own box centers.
-- `text` uses canvas font-family strings, so rendering may vary slightly across hosts depending on available fonts.
+- `text` uses canvas font-family strings, so exact glyph appearance may vary slightly across hosts; the more stable contract is layout box placement, alignment, clipping, and rotation.
 - `export_texture` only writes to relative paths inside `workspaceRoot`.
 
 ## Reference Docs
