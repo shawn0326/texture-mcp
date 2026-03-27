@@ -28,6 +28,7 @@ import {
   validateRecipeInputSchema,
   validateRecipeOutputSchema
 } from "../core/schema.js";
+import { MAX_RECIPE_LAYERS } from "../core/limits.js";
 import {
   type JsonSchemaObject,
   type ExportTextureInput,
@@ -114,7 +115,7 @@ export function createTextureToolDefinitions(state: AppState): TextureToolDefini
       name: "generate_texture",
       title: "Generate Texture",
       description:
-        "Render a texture from either a semantic preset or an explicit recipe, then store it as the current in-memory result for this MCP session. Use `mode: \"preset\"` with `list_presets` and `get_preset_schema` for the fastest high-level generation, or `mode: \"recipe\"` with `validate_recipe` for precise layer control. If you want an editable recipe before rendering, call `resolve_preset` first. If `seed` is omitted, a fixed default seed is used so results stay reproducible. Call `export_texture` after this tool when you want to write the current result to disk.",
+        `Render a texture from either a semantic preset or an explicit recipe, then store it as the current in-memory result for this MCP session. Use \`mode: "preset"\` with \`list_presets\` and \`get_preset_schema\` for the fastest high-level generation, or \`mode: "recipe"\` with \`validate_recipe\` for precise layer control. Recipes above \`${MAX_RECIPE_LAYERS}\` total layers are rejected, so keep custom or edited recipes within that limit before rendering. If you want an editable recipe before rendering, call \`resolve_preset\` first. If \`seed\` is omitted, a fixed default seed is used so results stay reproducible. Call \`export_texture\` after this tool when you want to write the current result to disk.`,
       inputSchema: generateTextureInputSchema,
       outputSchema: generateTextureOutputSchema,
       execute: async (input) => {
@@ -249,7 +250,7 @@ export function createTextureToolDefinitions(state: AppState): TextureToolDefini
       name: "resolve_preset",
       title: "Resolve Preset",
       description:
-        "Resolve a built-in semantic preset into a normalized recipe without rendering or creating a current session result. Use this in preset-first workflows when you want the preset as an editable recipe before `validate_recipe`, `generate_texture` in `recipe` mode, or external tool handoff.",
+        `Resolve a built-in semantic preset into a normalized recipe without rendering or creating a current session result. Use this in preset-first workflows when you want the preset as an editable recipe before \`validate_recipe\`, \`generate_texture\` in \`recipe\` mode, or external tool handoff. If you keep editing the resolved recipe, the final recipe must still stay within \`${MAX_RECIPE_LAYERS}\` total layers.`,
       inputSchema: resolvePresetInputSchema,
       outputSchema: resolvePresetOutputSchema,
       execute: async (input) => {
@@ -266,7 +267,7 @@ export function createTextureToolDefinitions(state: AppState): TextureToolDefini
       name: "validate_recipe",
       title: "Validate Recipe",
       description:
-        "Validate a recipe without rendering it. Returns `valid` plus readable `errors`, and when validation succeeds also returns `normalizedRecipe` and `stats`. Recommended before `generate_texture` when working in `recipe` mode, including recipes returned from `resolve_preset`.",
+        `Validate a recipe without rendering it. Returns \`valid\` plus readable \`errors\`, and when validation succeeds also returns \`normalizedRecipe\` and \`stats\`. Recommended before \`generate_texture\` when working in \`recipe\` mode, including recipes returned from \`resolve_preset\`. Recipes must stay within \`${MAX_RECIPE_LAYERS}\` total layers.`,
       inputSchema: validateRecipeInputSchema,
       outputSchema: validateRecipeOutputSchema,
       execute: async (input) => {

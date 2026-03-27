@@ -69,9 +69,13 @@ test("discovery: getWorkflowPrompt returns text guidance and rejects arguments",
   assert.match(presetPrompt.text, /list_presets/);
   assert.match(presetPrompt.text, /resolve_preset/);
   assert.match(presetPrompt.text, /generate_texture/);
+  assert.match(presetPrompt.text, /128/);
+  assert.match(presetPrompt.text, /total layers/i);
   assert.match(recipePrompt.text, /validate_recipe/);
   assert.match(recipePrompt.text, /resolve_preset/);
   assert.match(recipePrompt.text, /applicationScope/);
+  assert.match(recipePrompt.text, /128/);
+  assert.match(recipePrompt.text, /total layers/i);
   assert.throws(
     () => getWorkflowPrompt("recommended_preset_workflow", { unexpected: "value" }),
     /does not accept arguments/i

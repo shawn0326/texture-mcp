@@ -231,13 +231,16 @@ test("mcp integration: initialize and list tools", async () => {
     assert.match(generateTool.description, /preset/i);
     assert.match(generateTool.description, /recipe/i);
     assert.match(generateTool.description, /seed/i);
+    assert.match(generateTool.description, /128/);
     assert.match(resolveTool.description, /normalized recipe/i);
     assert.match(resolveTool.description, /without rendering/i);
+    assert.match(resolveTool.description, /128/);
     assert.match(exportTool.description, /workspaceRoot/i);
     assert.match(exportTool.description, /generate_texture/i);
     assert.match(workspaceTool.description, /workspaceRoot/i);
     assert.match(workspaceTool.description, /cwd/i);
     assert.match(validateTool.description, /normalizedRecipe/);
+    assert.match(validateTool.description, /128/);
   } finally {
     await session.close();
   }
@@ -319,8 +322,10 @@ test("mcp integration: resources and prompts are discoverable", async () => {
     assert.equal(presetPromptResult.messages.length, 1);
     assert.equal(presetPromptResult.messages[0].role, "user");
     assert.match(presetPromptResult.messages[0].content.text, /list_presets/);
+    assert.match(presetPromptResult.messages[0].content.text, /128/);
     assert.match(presetPromptResult.messages[0].content.text, /texture:\/\/docs\/preset-playbook/);
     assert.match(recipePromptResult.messages[0].content.text, /validate_recipe/);
+    assert.match(recipePromptResult.messages[0].content.text, /128/);
     assert.match(recipePromptResult.messages[0].content.text, /texture:\/\/docs\/layer-reference/);
   } finally {
     await session.close();

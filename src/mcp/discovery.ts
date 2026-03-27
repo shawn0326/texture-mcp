@@ -1,3 +1,4 @@
+import { MAX_RECIPE_LAYERS } from "../core/limits.js";
 import { buildLayerReferenceMarkdown, buildPresetPlaybookMarkdown, buildRecipeExamplesMarkdown, buildWorkflowGuardrailsMarkdown } from "./reference-content.js";
 
 export type ReferenceResource = {
@@ -61,6 +62,7 @@ const workflowPrompts: WorkflowPrompt[] = [
     description: "Guide the caller through the recommended preset-first workflow, including when to branch into `resolve_preset` for editable recipes.",
     text: [
       "Use this workflow when a built-in preset is likely to be enough and you want the fastest stable result.",
+      `If you branch into recipe editing, keep the final recipe at or below \`${MAX_RECIPE_LAYERS}\` total layers. Simplify or stay in preset mode instead of relying on a later repair pass to trim excess layers.`,
       "",
       "Recommended call order:",
       "1. `list_presets` to discover candidates.",
@@ -84,6 +86,7 @@ const workflowPrompts: WorkflowPrompt[] = [
     text: [
       "Use this workflow when you need exact control over layer ordering, geometry, constraints, or composition notes.",
       "If you started from a preset and then needed an editable recipe, use `resolve_preset` first and continue here from the validation step.",
+      `Plan the recipe to stay at or below \`${MAX_RECIPE_LAYERS}\` total layers before validation. Prefer fewer layers or a preset-first starting point when the effect would otherwise exceed that hard limit.`,
       "",
       "Recommended call order:",
       "1. `list_layer_types` to discover local draw layers and fullscreen effects.",
