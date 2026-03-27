@@ -44,6 +44,21 @@ const recipeExamples: ExampleCall[] = [
     }
   },
   {
+    title: "Resolve A Preset For Editing",
+    description:
+      "Use this when a preset is close to what you want, but you still need the compiled recipe for layer-level editing before rendering.",
+    tool: "resolve_preset",
+    arguments: {
+      preset: "beam",
+      params: {
+        orientation: "horizontal",
+        length: 0.9,
+        thickness: 0.12,
+        intensity: 0.92
+      }
+    }
+  },
+  {
     title: "Beam Recipe Validation",
     description: "Validate a custom beam recipe before rendering it.",
     tool: "validate_recipe",
@@ -218,6 +233,12 @@ export function buildPresetPlaybookMarkdown(): string {
     "",
     "Stable runtime-generated guide for choosing and tuning built-in presets.",
     "",
+    "Use presets as one main workflow, not as a third separate system:",
+    "",
+    "- Use `preset-first` when you want the fastest semantic starting point.",
+    "- If the preset result is close but still needs layer-level editing, call `resolve_preset` to turn it into a normalized recipe before validating or rendering in `recipe` mode.",
+    "- Use `recipe-first` only when you already know that you need exact layer control from the beginning.",
+    "",
     "## Summary",
     "",
     ...summaryRows,
@@ -245,9 +266,11 @@ export function buildRecipeExamplesMarkdown(): string {
     "",
     "Stable runtime-generated MCP call examples for common workflows.",
     "",
-    "- Use `preset` mode for fast semantic generation.",
-    "- Use `recipe` mode for exact layer ordering and geometry.",
-    "- Run `validate_recipe` before `generate_texture` when authoring custom recipes.",
+    "- Use `preset-first` when you want the fastest semantic result.",
+    "- In `preset-first`, use `resolve_preset` only when you need to keep editing the compiled recipe.",
+    "- Use `recipe-first` when you already need exact layer ordering and geometry.",
+    "- Run `validate_recipe` before `generate_texture` when authoring custom recipes or when continuing from `resolve_preset` output.",
+    "- When using `generate_texture` in `recipe` mode, pass the recipe as an object. Do not JSON-stringify it.",
     "- Call `export_texture` only after a successful `generate_texture` step in the same session.",
     "",
     ...sections
@@ -266,8 +289,10 @@ export function buildWorkflowGuardrailsMarkdown(): string {
     "",
     "1. `list_presets`",
     "2. `get_preset_schema`",
-    "3. `generate_texture` with `mode: \"preset\"`",
-    "4. `export_texture`",
+    "3. If you only need a fast result, call `generate_texture` with `mode: \"preset\"`.",
+    "4. If you need layer-level editing after choosing a preset, call `resolve_preset` instead.",
+    "5. When coming from `resolve_preset`, optionally call `validate_recipe` and then `generate_texture` with `mode: \"recipe\"`.",
+    "6. `export_texture`",
     "",
     "### Recipe-first workflow",
     "",
@@ -276,6 +301,12 @@ export function buildWorkflowGuardrailsMarkdown(): string {
     "3. `validate_recipe`",
     "4. `generate_texture` with `mode: \"recipe\"`",
     "5. `export_texture`",
+    "",
+    "## Simple Choice Rules",
+    "",
+    "- Use `preset-first` when you want the fastest path to a useful texture.",
+    "- Use `recipe-first` when you already know you need exact layer composition control.",
+    "- Use `resolve_preset` only as an editable branch inside `preset-first`, not as a third equal workflow.",
     "",
     "## Guardrails",
     "",

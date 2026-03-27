@@ -43,6 +43,7 @@ Current MCP tools:
 - `get_workspace_info`
 - `list_presets`
 - `get_preset_schema`
+- `resolve_preset`
 - `list_layer_types`
 - `get_layer_schema`
 - `validate_recipe`
@@ -143,12 +144,15 @@ Once connected, the simplest user flow is:
 1. Ask the client to list presets or layer types.
 2. Optionally call `get_workspace_info` to confirm the current export root.
 3. Inspect one preset or layer schema.
-4. Validate a recipe if you are using `recipe` mode.
-5. Generate a texture.
-6. Export the current result to a relative path inside the workspace.
+4. If you start from a preset and want to keep editing the compiled layers, call `resolve_preset`.
+5. Validate a recipe if you are using `recipe` mode or continuing from `resolve_preset`.
+6. Generate a texture.
+7. Export the current result to a relative path inside the workspace.
 
 Use `preset` mode when you want the fastest path to a useful result.
-Use `recipe` mode when you want direct control over layer composition.
+Use `resolve_preset` when a preset should become an editable recipe before rendering.
+Use `recipe` mode when you want direct control over layer composition from the beginning.
+When using `recipe` mode, pass the `recipe` as an object, not a JSON string.
 `generate_texture` validates the selected mode strictly and rejects mixed preset/recipe input in the same call.
 
 ## Local Development
@@ -190,16 +194,28 @@ After it finishes, open `demo/index.html` to browse the results visually.
 
 ## Recommended Workflow
 
-For AI callers, the recommended sequence is:
+For AI callers, treat this as two main workflows:
 
-1. `list_presets` or `list_layer_types`
-2. `get_preset_schema` or `get_layer_schema`
+### Preset-first
+
+1. `list_presets`
+2. `get_preset_schema`
+3. If you only need a fast result, call `generate_texture` with `mode: "preset"`
+4. If the preset is only a starting point and you still want layer-level editing, call `resolve_preset`
+5. When continuing from `resolve_preset`, optionally call `validate_recipe`, then call `generate_texture` with `mode: "recipe"`
+6. `export_texture`
+
+### Recipe-first
+
+1. `list_layer_types`
+2. `get_layer_schema`
 3. `validate_recipe`
-4. `generate_texture`
+4. `generate_texture` with `mode: "recipe"`
 5. `export_texture`
 
 Use presets when you want a fast semantic starting point.
-Use recipe mode when you need precise control over layer composition.
+Use `resolve_preset` only as an editable branch inside `preset-first`, not as a third equal workflow.
+Use `recipe` mode when you need precise control over layer composition from the outset.
 
 The server also exposes runtime-generated MCP resources and prompts for these workflows, so callers can read reference material directly without depending on local `docs/*.md` files.
 
@@ -229,6 +245,7 @@ The tools return stable `structuredContent` intended for MCP callers.
 - `get_workspace_info` returns `workspaceRoot`, `workspaceRootSource`, `cwd`, and `exportPolicy`.
 - `list_presets` preset items also include `primaryParams` and `commonUses` to help pick the best semantic starting point.
 - `get_preset_schema` returns full preset schema metadata plus summary fields such as `mode`, `paramCount`, `paramNames`, `requiredParamNames`, `schemaRequiredParamNames`, `defaultParamNames`, `parameterSemantics`, `commonUses`, `tuningNotes`, and `compilesToLayerTypes`.
+- `resolve_preset` returns `preset`, `resolvedParams`, `recipe`, `recipeLayerCount`, and `compilesToLayerTypes` without creating a current session result.
 - `list_layer_types` returns `count` and `layers`.
 - `list_layer_types` layer items also include `applicationScope`, `primaryParameters`, and `commonUses` to help choose between local draw layers and fullscreen effects.
 - `get_layer_schema` returns full layer semantics plus summary fields such as `mode`, `primaryParameters`, `parameterNames`, `requiredParameterNames`, `constraintFields`, `applicationScope`, and `exampleCount`.
@@ -275,6 +292,8 @@ Inspect one preset:
 
 `requiredParamNames` reflects what the caller must still provide explicitly after preset defaults are applied.
 `schemaRequiredParamNames` reflects the raw underlying schema before defaults are merged.
+
+If you want an editable compiled recipe instead of rendering immediately, call `resolve_preset` after choosing your params.
 
 Typical `beam` parameters:
 
@@ -380,6 +399,8 @@ When valid, `validate_recipe` returns:
 - `normalizedRecipe`
 - `stats`
 
+When continuing to `generate_texture` in `recipe` mode, prefer `normalizedRecipe` and pass it directly as the `recipe` object field. Do not JSON-stringify it.
+
 ## Example: Generate From A Preset
 
 ```json
@@ -412,6 +433,33 @@ When valid, `validate_recipe` returns:
 - `usedDefaultSeed`
 - `recipeLayerCount`
 - `currentResultAvailable`
+
+## Example: Resolve A Preset For Editing
+
+```json
+{
+  "tool": "resolve_preset",
+  "arguments": {
+    "preset": "beam",
+    "params": {
+      "orientation": "horizontal",
+      "length": 0.9,
+      "thickness": 0.12,
+      "intensity": 0.92
+    }
+  }
+}
+```
+
+`resolve_preset` returns structured fields such as:
+
+- `preset`
+- `resolvedParams`
+- `recipe`
+- `recipeLayerCount`
+- `compilesToLayerTypes`
+
+This tool does not render and does not create a current in-memory result. To render the returned recipe, pass it to `generate_texture` with `mode: "recipe"`.
 
 ## Example: Generate From A Recipe
 

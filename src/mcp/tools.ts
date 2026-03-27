@@ -1,7 +1,7 @@
 import type { CallToolResult, ListToolsResult } from "@modelcontextprotocol/sdk/types.js";
 import * as z from "zod/v4";
 import { exportTexture } from "../core/export.js";
-import { generateTexture } from "../core/generate.js";
+import { generateTexture, resolvePreset } from "../core/generate.js";
 import { getLayerSchemaInfo, listLayerCatalog } from "../core/layers.js";
 import {
   getPresetSchemaInfo,
@@ -15,6 +15,8 @@ import {
   generateTextureOutputSchema,
   getWorkspaceInfoInputSchema,
   getWorkspaceInfoOutputSchema,
+  resolvePresetInputSchema,
+  resolvePresetOutputSchema,
   getLayerSchemaInputSchema,
   getLayerSchemaOutputSchema,
   getPresetSchemaInputSchema,
@@ -34,7 +36,8 @@ import {
   type GetLayerSchemaInput,
   type GetPresetSchemaInput,
   type ListLayerTypesOutput,
-  type ListPresetsOutput
+  type ListPresetsOutput,
+  type ResolvePresetInput
 } from "../core/types.js";
 import { getCurrentResult, getWorkspaceInfo, setCurrentResult, type AppState } from "./state.js";
 
@@ -111,7 +114,7 @@ export function createTextureToolDefinitions(state: AppState): TextureToolDefini
       name: "generate_texture",
       title: "Generate Texture",
       description:
-        "Render a texture from either a semantic preset or an explicit recipe, then store it as the current in-memory result for this MCP session. Use `mode: \"preset\"` with `list_presets` and `get_preset_schema` for high-level generation, or `mode: \"recipe\"` with `validate_recipe` for precise layer control. If `seed` is omitted, a fixed default seed is used so results stay reproducible. Call `export_texture` after this tool when you want to write the current result to disk.",
+        "Render a texture from either a semantic preset or an explicit recipe, then store it as the current in-memory result for this MCP session. Use `mode: \"preset\"` with `list_presets` and `get_preset_schema` for the fastest high-level generation, or `mode: \"recipe\"` with `validate_recipe` for precise layer control. If you want an editable recipe before rendering, call `resolve_preset` first. If `seed` is omitted, a fixed default seed is used so results stay reproducible. Call `export_texture` after this tool when you want to write the current result to disk.",
       inputSchema: generateTextureInputSchema,
       outputSchema: generateTextureOutputSchema,
       execute: async (input) => {
@@ -204,14 +207,14 @@ export function createTextureToolDefinitions(state: AppState): TextureToolDefini
       name: "list_presets",
       title: "List Presets",
       description:
-        "List the built-in semantic presets with short descriptions. Use this as the discovery entry point before `get_preset_schema` or `generate_texture` in `preset` mode.",
+        "List the built-in semantic presets with short descriptions. Use this as the discovery entry point before `get_preset_schema`, `generate_texture` in `preset` mode, or `resolve_preset` when you need an editable compiled recipe.",
       inputSchema: listPresetsInputSchema,
       outputSchema: listPresetsOutputSchema,
       execute: async () => {
         const presets: ListPresetsOutput["presets"] = listPresetCatalog();
 
         return createToolSuccess(
-          `Found ${presets.length} presets: ${formatItemList(presets.map((preset) => preset.name))}. Use each preset's \`commonUses\` and \`primaryParams\` to pick the closest match, then call \`get_preset_schema\` before using \`generate_texture\` in preset mode.`,
+          `Found ${presets.length} presets: ${formatItemList(presets.map((preset) => preset.name))}. Use each preset's \`commonUses\` and \`primaryParams\` to pick the closest match, then call \`get_preset_schema\` before using \`generate_texture\` in preset mode or \`resolve_preset\` when you need an editable compiled recipe.`,
           {
             count: presets.length,
             presets
@@ -223,7 +226,7 @@ export function createTextureToolDefinitions(state: AppState): TextureToolDefini
       name: "get_preset_schema",
       title: "Get Preset Schema",
       description:
-        "Return the schema and default parameters for one built-in preset. Use this to discover valid `params`, defaults, and which fields are still explicitly required before calling `generate_texture` with `mode: \"preset\"`.",
+        "Return the schema and default parameters for one built-in preset. Use this to discover valid `params`, defaults, and which fields are still explicitly required before calling `generate_texture` with `mode: \"preset\"` or `resolve_preset` when you want an editable compiled recipe.",
       inputSchema: getPresetSchemaInputSchema,
       outputSchema: getPresetSchemaOutputSchema,
       execute: async (input) => {
@@ -237,8 +240,25 @@ export function createTextureToolDefinitions(state: AppState): TextureToolDefini
         }
 
         return createToolSuccess(
-          `Preset schema returned for \`${presetDefinition.name}\`. Start from \`defaultParams\`, check \`requiredParamNames\` for any inputs that still must be provided explicitly, use \`schemaRequiredParamNames\` when you need the raw schema contract, and use \`parameterSemantics\` plus \`tuningNotes\` to adjust only the parameters you need before calling \`generate_texture\` in preset mode.`,
+          `Preset schema returned for \`${presetDefinition.name}\`. Start from \`defaultParams\`, check \`requiredParamNames\` for any inputs that still must be provided explicitly, use \`schemaRequiredParamNames\` when you need the raw schema contract, and use \`parameterSemantics\` plus \`tuningNotes\` to adjust only the parameters you need before calling \`generate_texture\` in preset mode. If you need an editable compiled recipe, call \`resolve_preset\` after choosing the params.`,
           presetDefinition
+        );
+      }
+    },
+    {
+      name: "resolve_preset",
+      title: "Resolve Preset",
+      description:
+        "Resolve a built-in semantic preset into a normalized recipe without rendering or creating a current session result. Use this in preset-first workflows when you want the preset as an editable recipe before `validate_recipe`, `generate_texture` in `recipe` mode, or external tool handoff.",
+      inputSchema: resolvePresetInputSchema,
+      outputSchema: resolvePresetOutputSchema,
+      execute: async (input) => {
+        const parsedInput = input as ResolvePresetInput;
+        const resolved = resolvePreset(parsedInput);
+
+        return createToolSuccess(
+          `Preset \`${resolved.preset}\` was resolved to a normalized recipe with ${resolved.recipeLayerCount} layers. This does not create a current in-memory result. If you want to render it, pass the returned \`recipe\` to \`generate_texture\` with \`mode: "recipe"\`.`,
+          resolved
         );
       }
     },
@@ -246,13 +266,13 @@ export function createTextureToolDefinitions(state: AppState): TextureToolDefini
       name: "validate_recipe",
       title: "Validate Recipe",
       description:
-        "Validate a recipe without rendering it. Returns `valid` plus readable `errors`, and when validation succeeds also returns `normalizedRecipe` and `stats`. Recommended before `generate_texture` when working in `recipe` mode.",
+        "Validate a recipe without rendering it. Returns `valid` plus readable `errors`, and when validation succeeds also returns `normalizedRecipe` and `stats`. Recommended before `generate_texture` when working in `recipe` mode, including recipes returned from `resolve_preset`.",
       inputSchema: validateRecipeInputSchema,
       outputSchema: validateRecipeOutputSchema,
       execute: async (input) => {
         const result = validateRecipe((input as { recipe: unknown }).recipe);
         const text = result.valid
-          ? `Recipe is valid. Use \`normalizedRecipe\` for the canonical form and \`stats\` for complexity checks, then pass the recipe to \`generate_texture\` with \`mode: "recipe"\`.`
+          ? `Recipe is valid. Use \`normalizedRecipe\` as the canonical object form and \`stats\` for complexity checks, then pass \`normalizedRecipe\` directly to \`generate_texture\` with \`mode: "recipe"\`. Do not JSON-stringify the recipe.`
           : `Recipe is invalid. Review these issues before rendering:\n${result.errors.map((error) => `- ${error.path}: ${error.message}`).join("\n")}\nUse \`get_layer_schema\` for the relevant layer type when you need field-level constraints or examples.`;
 
         return createToolSuccess(text, result);

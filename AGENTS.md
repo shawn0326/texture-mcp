@@ -5,7 +5,7 @@
 ## 当前状态
 
 - 当前项目的 MVP 与最小 DSL/Preset/AI 查询链路已完成，可通过 MCP 调用生成、校验、导出贴图，并查询 preset 与 layer 语义信息。
-- 当前核心链路为 `Preset -> Recipe -> Renderer -> Export/MCP`。
+- 当前核心链路为 `Preset -> Recipe -> Renderer -> Export/MCP`，其中 `resolve_preset` 已将 `Preset -> Recipe` 这段链路显式暴露给外部调用方。
 - 当前正式 recipe layer 类型：
   - `gradientCircle`
   - `circle`
@@ -28,6 +28,7 @@
   - `colorRamp`
 - 当前已实现的 MCP tools：
   - `get_workspace_info`
+  - `resolve_preset`
   - `generate_texture`
   - `export_texture`
   - `list_presets`
@@ -55,6 +56,7 @@
 - 当前测试已覆盖：
   - JSONL 与 `Content-Length` 两类 `stdio` framing 的黑盒握手与基础 tool 调用
   - 颜色字段校验与标准化、常见非法值错误路径
+  - `resolve_preset` 的参数合并、标准化 recipe 返回、以及与 `generate_texture(mode: "preset")` 的编译一致性
   - `text` 的布局、旋转、裁剪与不可用字体回退行为
   - 多层组合场景下 `blur`、`noise`、`gradientCircle`、`gradientRect` 的基础像素回归
 - 当前阶段的开发重点已从 P2 文档/资源补齐转入 P3：优先做输入契约与行为边界硬化、跨宿主稳定性验证，以及更贴近 VFX / 粒子工作流的产品增强。
@@ -105,7 +107,7 @@
   - 单通道 / mask / alpha 控制
   - 多 seed 批量变体生成
   - flipbook / atlas / strip 这类时序贴图输出
-  - preset 编译结果向外部编辑器的可控交接
+  - `resolve_preset` 产物向外部编辑器的可控交接
 
 ## 目录职责
 
@@ -184,12 +186,16 @@
 - 默认不要返回完整 recipe；优先保持 `generate_texture` 的 structured output 简洁、稳定、低噪声。
 - 对 AI 调用而言，默认回传整份 recipe 往往会放大上下文体积，却不一定提升首轮成功率。
 - 在 `preset` 模式下，编译后的 recipe 具有真实价值，因为它承担“高层语义 preset -> 标准 DSL” 的桥接作用。
-- 因此，如需暴露 preset 编译后的 recipe，优先采用显式可选字段，例如 `includeResolvedRecipe`，不要默认总是返回。
+- 当前默认优先通过独立的 `resolve_preset` 暴露这段桥接结果，而不是默认把 recipe 混入 `generate_texture` 返回。
+- 因此，如需补充 preset 编译结果暴露能力，优先顺序应为：
+  - 先考虑 `resolve_preset`
+  - 再谨慎评估 `generate_texture` 上的显式可选字段，例如 `includeResolvedRecipe`
 - 在 `recipe` 模式下，通常不应原样回传用户已提供的 recipe；这类回显默认价值较低。
 - 如果 `recipe` 模式确实需要返回内容，应优先考虑返回标准化后的 `normalizedRecipe`，并与 `validate_recipe` 的职责区分清楚，避免重复。
-- 如果未来粒子编辑器或外部工具需要稳定获取 preset 编译结果，可优先评估：
-  - 在 `generate_texture` 中增加显式可选返回项
-  - 或单独提供更纯粹的查询/编译类能力，例如仅返回编译后的 recipe，而不触发渲染与导出
+- 当前推荐的对外流程叙事应保持为两条主路径：
+  - `preset-first`
+  - `recipe-first`
+- 其中 `resolve_preset` 属于 `preset-first` 下的可编辑分支，而不是第三条并列主路径。
 
 ## 测试与验证要求
 

@@ -5,9 +5,10 @@ The examples are intentionally compact and designed to be copied into MCP tool c
 
 ## Conventions
 
-- Use `preset` mode for fast semantic generation.
-- Use `recipe` mode for exact layer ordering and geometry.
-- Run `validate_recipe` before `generate_texture` when authoring custom recipes.
+- Use `preset-first` for fast semantic generation.
+- Use `resolve_preset` only when a preset should become an editable recipe before rendering.
+- Use `recipe-first` for exact layer ordering and geometry.
+- Run `validate_recipe` before `generate_texture` when authoring custom recipes or when continuing from `resolve_preset`.
 - Omit `seed` only when you are happy with the fixed default seed.
 - Recipe color inputs should use the validated subset: `#rgb`, `#rgba`, `#rrggbb`, `#rrggbbaa`, `rgb(...)`, `rgba(...)`, or `transparent`.
 
@@ -53,7 +54,26 @@ Use this when you need a soft light sprite or pickup effect with minimal setup.
 
 Use this for shield hits, portal outlines, or target markers.
 
-## Example 3: Beam Recipe
+## Example 3: Resolve A Beam Preset For Editing
+
+```json
+{
+  "tool": "resolve_preset",
+  "arguments": {
+    "preset": "beam",
+    "params": {
+      "orientation": "horizontal",
+      "length": 0.9,
+      "thickness": 0.12,
+      "intensity": 0.92
+    }
+  }
+}
+```
+
+Use this when the preset is close, but you still want the compiled recipe before validation or rendering.
+
+## Example 4: Beam Recipe
 
 Validate first:
 
@@ -137,7 +157,7 @@ Then render:
 
 Use this when you need a bright beam with a blurred body and a crisp core.
 
-## Example 4: Labeled Panel Recipe
+## Example 5: Labeled Panel Recipe
 
 ```json
 {
@@ -196,7 +216,7 @@ Use this when you need a bright beam with a blurred body and a crisp core.
 
 Use this as a minimal UI card example that mixes draw layers and text.
 
-## Example 5: Export The Current Result
+## Example 6: Export The Current Result
 
 ```json
 {
@@ -215,7 +235,7 @@ Notes:
 - The resolved target must stay inside `workspaceRoot`.
 - `export_texture` only works after a successful `generate_texture` call in the same MCP session.
 
-## Example 6: Color Ramp Preset
+## Example 7: Color Ramp Preset
 
 ```json
 {

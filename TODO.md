@@ -5,10 +5,8 @@
 ## 协议与接口
 
 - [ ] 评估降低 `generate_texture -> export_texture` 对单一“当前结果”会话态的依赖，例如引入显式结果句柄或更稳定的结果引用方式，避免多次生成时互相覆盖。
-- [ ] 继续讨论并明确 `Preset -> Recipe` 对外暴露策略：在不放大默认输出噪声的前提下，让 AI 或外部工具能稳定获取 preset 编译后的 recipe。
 - [ ] 若后续有多 workspace 或宿主集成需求，扩展 `workspaceRoot` 的来源策略，例如多根目录或宿主显式注入。
-- [ ] 评估为 `generate_texture` 增加可选返回项，例如 `includeResolvedRecipe`，仅在显式请求时于 `preset` 模式下回传编译后的 recipe。
-- [ ] 如果“只获取 preset 编译结果、不需要渲染”的需求稳定存在，评估是否拆分独立的 compile / resolve 类能力。
+- [ ] 在已提供 `resolve_preset` 之后，视真实调用情况再评估是否还有必要为 `generate_texture` 增加 `includeResolvedRecipe` 一类可选回包。
 - [ ] 评估是否提供更轻量的生成结果检查或引用信息，让 AI 在生成后不必立刻落盘也能继续比较、选择和导出。
 
 ## 产品增强

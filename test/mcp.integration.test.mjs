@@ -213,6 +213,7 @@ test("mcp integration: initialize and list tools", async () => {
     const toolNames = toolListResult.tools.map((tool) => tool.name).sort();
     const generateTool = toolListResult.tools.find((tool) => tool.name === "generate_texture");
     const exportTool = toolListResult.tools.find((tool) => tool.name === "export_texture");
+    const resolveTool = toolListResult.tools.find((tool) => tool.name === "resolve_preset");
     const workspaceTool = toolListResult.tools.find((tool) => tool.name === "get_workspace_info");
     const validateTool = toolListResult.tools.find((tool) => tool.name === "validate_recipe");
 
@@ -224,11 +225,14 @@ test("mcp integration: initialize and list tools", async () => {
       "get_workspace_info",
       "list_layer_types",
       "list_presets",
+      "resolve_preset",
       "validate_recipe"
     ]);
     assert.match(generateTool.description, /preset/i);
     assert.match(generateTool.description, /recipe/i);
     assert.match(generateTool.description, /seed/i);
+    assert.match(resolveTool.description, /normalized recipe/i);
+    assert.match(resolveTool.description, /without rendering/i);
     assert.match(exportTool.description, /workspaceRoot/i);
     assert.match(exportTool.description, /generate_texture/i);
     assert.match(workspaceTool.description, /workspaceRoot/i);
@@ -256,6 +260,7 @@ test("mcp integration: initialize and list tools over content-length framing", a
     assert.equal(toolNames.includes("generate_texture"), true);
     assert.equal(toolNames.includes("export_texture"), true);
     assert.equal(toolNames.includes("get_workspace_info"), true);
+    assert.equal(toolNames.includes("resolve_preset"), true);
     assert.equal(toolNames.includes("validate_recipe"), true);
     assert.equal(resourcesResult.resources.length, 4);
     assert.equal(promptsResult.prompts.length, 2);
@@ -427,7 +432,30 @@ test("mcp integration: placeholder info tools return structured results", async 
     assert.match(schemaResult.content[0].text, /requiredParamNames/);
     assert.match(schemaResult.content[0].text, /schemaRequiredParamNames/);
     assert.match(schemaResult.content[0].text, /parameterSemantics/);
-    assert.match(schemaResult.content[0].text, /generate_texture/);
+    assert.match(schemaResult.content[0].text, /resolve_preset/);
+
+    const resolveResult = await session.request("tools/call", {
+      name: "resolve_preset",
+      arguments: {
+        preset: "ring",
+        params: {
+          softness: 0.4
+        }
+      }
+    });
+
+    assert.notEqual(resolveResult.isError, true, session.getStderr());
+    assert.equal(resolveResult.structuredContent.preset, "ring");
+    assert.equal(resolveResult.structuredContent.resolvedParams.thickness, 0.2);
+    assert.equal(resolveResult.structuredContent.resolvedParams.softness, 0.4);
+    assert.equal(resolveResult.structuredContent.recipe.version, 1);
+    assert.equal(
+      resolveResult.structuredContent.recipeLayerCount,
+      resolveResult.structuredContent.recipe.layers.length
+    );
+    assert.deepEqual(resolveResult.structuredContent.compilesToLayerTypes, ["ring", "blur"]);
+    assert.match(resolveResult.content[0].text, /does not create a current in-memory result/);
+    assert.match(resolveResult.content[0].text, /generate_texture/);
 
     const layerTypesResult = await session.request("tools/call", {
       name: "list_layer_types",
@@ -512,6 +540,8 @@ test("mcp integration: placeholder info tools return structured results", async 
     assert.equal(validateResult.structuredContent.errorCount, 0);
     assert.equal(validateResult.structuredContent.readyForGeneration, true);
     assert.equal(validateResult.structuredContent.normalizedRecipe.layers[0].type, "text");
+    assert.match(validateResult.content[0].text, /normalizedRecipe/);
+    assert.match(validateResult.content[0].text, /Do not JSON-stringify the recipe/i);
     assert.match(validateResult.content[0].text, /generate_texture/);
   } finally {
     await session.close();
@@ -532,6 +562,18 @@ test("mcp integration: invalid calls return tool errors", async () => {
     assert.equal(unknownPresetResult.isError, true, session.getStderr());
     assert.match(unknownPresetResult.content[0].text, /Unknown preset/);
     assert.match(unknownPresetResult.content[0].text, /list_presets/);
+
+    const invalidResolveResult = await session.request("tools/call", {
+      name: "resolve_preset",
+      arguments: {
+        preset: "glow",
+        width: 64
+      }
+    });
+
+    assert.equal(invalidResolveResult.isError, true, session.getStderr());
+    assert.match(invalidResolveResult.content[0].text, /Invalid arguments/);
+    assert.match(invalidResolveResult.content[0].text, /width/i);
 
     await assert.rejects(
       session.request("resources/read", {
@@ -636,6 +678,20 @@ test("mcp integration: invalid calls return tool errors", async () => {
     assert.match(recipeModeWithPresetResult.content[0].text, /Invalid arguments/);
     assert.match(recipeModeWithPresetResult.content[0].text, /preset|params/i);
 
+    const stringifiedRecipeGenerateResult = await session.request("tools/call", {
+      name: "generate_texture",
+      arguments: {
+        mode: "recipe",
+        recipe: "{\"version\":1,\"layers\":[]}",
+        width: 64,
+        height: 64
+      }
+    });
+
+    assert.equal(stringifiedRecipeGenerateResult.isError, true, session.getStderr());
+    assert.match(stringifiedRecipeGenerateResult.content[0].text, /Recipe must be an object/i);
+    assert.match(stringifiedRecipeGenerateResult.content[0].text, /JSON string/i);
+
     const invalidRecipeResult = await session.request("tools/call", {
       name: "validate_recipe",
       arguments: {
@@ -660,6 +716,17 @@ test("mcp integration: invalid calls return tool errors", async () => {
     assert.equal(invalidRecipeResult.structuredContent.errors.length > 0, true);
     assert.equal(invalidRecipeResult.structuredContent.errorCount > 0, true);
     assert.match(invalidRecipeResult.content[0].text, /get_layer_schema/);
+
+    const stringifiedRecipeValidateResult = await session.request("tools/call", {
+      name: "validate_recipe",
+      arguments: {
+        recipe: "{\"version\":1,\"layers\":[]}"
+      }
+    });
+
+    assert.equal(stringifiedRecipeValidateResult.isError, true, session.getStderr());
+    assert.match(stringifiedRecipeValidateResult.content[0].text, /Recipe must be an object/i);
+    assert.match(stringifiedRecipeValidateResult.content[0].text, /JSON string/i);
   } finally {
     await session.close();
   }
@@ -752,6 +819,80 @@ test("mcp integration: generate then export validates the current result", async
     assert.equal(meta.format, "png");
     assert.equal(meta.width, 256);
     assert.equal(meta.height, 128);
+  } finally {
+    await rm(absoluteSavedPath, { force: true }).catch(() => undefined);
+    await rm(absoluteMetaPath, { force: true }).catch(() => undefined);
+    await session.close();
+  }
+});
+
+test("mcp integration: resolve_preset does not create a current result and matches preset generation", async () => {
+  const session = await createMcpSession();
+  const outputPath = path.join(
+    "test-output",
+    `mcp-resolve-${Date.now()}-${Math.floor(Math.random() * 1_000_000)}.png`
+  );
+  const absoluteSavedPath = path.resolve(projectRoot, outputPath);
+  const absoluteMetaPath = `${absoluteSavedPath}.meta.json`;
+
+  try {
+    const resolveResult = await session.request("tools/call", {
+      name: "resolve_preset",
+      arguments: {
+        preset: "shockwave",
+        params: {
+          radius: 0.34,
+          thickness: 0.12,
+          softness: 0.4
+        }
+      }
+    });
+
+    assert.notEqual(resolveResult.isError, true, session.getStderr());
+
+    const exportWithoutGenerateResult = await session.request("tools/call", {
+      name: "export_texture",
+      arguments: {
+        outputPath: "out/test.png",
+        format: "png"
+      }
+    });
+
+    assert.equal(exportWithoutGenerateResult.isError, true, session.getStderr());
+    assert.match(exportWithoutGenerateResult.content[0].text, /Run `generate_texture` first/);
+
+    const generateResult = await session.request("tools/call", {
+      name: "generate_texture",
+      arguments: {
+        mode: "preset",
+        preset: "shockwave",
+        params: {
+          radius: 0.34,
+          thickness: 0.12,
+          softness: 0.4
+        },
+        width: 256,
+        height: 256,
+        seed: 7
+      }
+    });
+
+    assert.notEqual(generateResult.isError, true, session.getStderr());
+    const exportResult = await session.request("tools/call", {
+      name: "export_texture",
+      arguments: {
+        outputPath,
+        format: "png",
+        saveMeta: true
+      }
+    });
+
+    assert.notEqual(exportResult.isError, true, session.getStderr());
+
+    const exportedMeta = JSON.parse(await readFile(absoluteMetaPath, "utf8"));
+
+    assert.deepEqual(resolveResult.structuredContent.resolvedParams, exportedMeta.params);
+    assert.deepEqual(resolveResult.structuredContent.recipe, exportedMeta.recipe);
   } finally {
     await rm(absoluteSavedPath, { force: true }).catch(() => undefined);
     await rm(absoluteMetaPath, { force: true }).catch(() => undefined);

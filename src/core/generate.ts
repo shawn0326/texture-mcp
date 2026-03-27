@@ -1,4 +1,4 @@
-import { generateTextureInputSchema } from "./schema.js";
+import { generateTextureInputSchema, resolvePresetInputSchema, resolvePresetOutputSchema } from "./schema.js";
 import { DEFAULT_TEXTURE_SEED } from "./limits.js";
 import { getPresetDefinition } from "./presets.js";
 import { normalizeRecipe } from "./recipe.js";
@@ -7,7 +7,9 @@ import type {
   GenerateTextureInput,
   GenerateTextureOutput,
   Meta,
-  Recipe
+  Recipe,
+  ResolvePresetInput,
+  ResolvePresetOutput
 } from "./types.js";
 
 export type GeneratedTexture = {
@@ -25,6 +27,34 @@ function resolveSeed(seed?: number): number {
   return DEFAULT_TEXTURE_SEED;
 }
 
+type ResolvedPreset = {
+  presetName: string;
+  resolvedParams: Record<string, unknown>;
+  recipe: Recipe;
+  compilesToLayerTypes: Recipe["layers"][number]["type"][];
+};
+
+function resolvePresetDefinition(input: ResolvePresetInput): ResolvedPreset {
+  const preset = getPresetDefinition(input.preset);
+
+  if (!preset) {
+    throw new Error(`Unknown preset: ${input.preset}`);
+  }
+
+  const mergedParams = {
+    ...preset.defaultParams,
+    ...(input.params ?? {})
+  };
+  const resolvedParams = preset.schema.parse(mergedParams) as Record<string, unknown>;
+
+  return {
+    presetName: preset.name,
+    resolvedParams,
+    recipe: normalizeRecipe(preset.toRecipe(resolvedParams)),
+    compilesToLayerTypes: [...preset.compilesToLayerTypes]
+  };
+}
+
 function resolveRecipe(input: GenerateTextureInput): {
   recipe: Recipe;
   presetName?: string;
@@ -36,23 +66,30 @@ function resolveRecipe(input: GenerateTextureInput): {
     };
   }
 
-  const preset = getPresetDefinition(input.preset);
-
-  if (!preset) {
-    throw new Error(`Unknown preset: ${input.preset}`);
-  }
-
-  const mergedParams = {
-    ...preset.defaultParams,
-    ...(input.params ?? {})
-  };
-  const resolvedParams = preset.schema.parse(mergedParams);
+  const resolvedPreset = resolvePresetDefinition({
+    preset: input.preset,
+    params: input.params
+  });
 
   return {
-    recipe: normalizeRecipe(preset.toRecipe(resolvedParams)),
-    presetName: preset.name,
-    resolvedParams
+    recipe: resolvedPreset.recipe,
+    presetName: resolvedPreset.presetName,
+    resolvedParams: resolvedPreset.resolvedParams
   };
+}
+
+export function resolvePreset(input: ResolvePresetInput): ResolvePresetOutput {
+  const parsedInput = resolvePresetInputSchema.parse(input) as ResolvePresetInput;
+  const resolvedPreset = resolvePresetDefinition(parsedInput);
+
+  return resolvePresetOutputSchema.parse({
+    preset: resolvedPreset.presetName,
+    resolvedParams: resolvedPreset.resolvedParams,
+    recipe: resolvedPreset.recipe,
+    recipeLayerCount: resolvedPreset.recipe.layers.length,
+    compilesToLayerTypes: resolvedPreset.compilesToLayerTypes,
+    message: "Preset resolved to a normalized recipe."
+  }) as ResolvePresetOutput;
 }
 
 export function generateTexture(input: GenerateTextureInput): GeneratedTexture {

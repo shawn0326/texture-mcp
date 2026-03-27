@@ -250,6 +250,20 @@ export type GenerateTextureInput =
       seed?: number;
     };
 
+export type ResolvePresetInput = {
+  preset: string;
+  params?: Record<string, unknown>;
+};
+
+export type ResolvePresetOutput = {
+  preset: string;
+  resolvedParams: Record<string, unknown>;
+  recipe: Recipe;
+  recipeLayerCount: number;
+  compilesToLayerTypes: LayerSpec["type"][];
+  message: string;
+};
+
 export type GenerateTextureOutput = {
   mode: "preset" | "recipe";
   width: number;

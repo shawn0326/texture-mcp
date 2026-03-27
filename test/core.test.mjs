@@ -8,7 +8,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const projectRoot = path.resolve(__dirname, "..");
 
-const { generateTexture } = await import(
+const { generateTexture, resolvePreset } = await import(
   pathToFileURL(path.join(projectRoot, "dist", "core", "generate.js")).href
 );
 const {
@@ -1225,6 +1225,50 @@ test("core: generateTexture resolves preset params into recipe and meta", () => 
   assert.equal(generated.recipe.layers.length > 0, true);
   assert.equal(generated.imageBuffer.subarray(0, 8).toString("hex"), "89504e470d0a1a0a");
   assert.equal(generated.output.message, "Texture rendered and stored as the current result.");
+});
+
+test("core: resolvePreset returns merged params and a normalized editable recipe", () => {
+  const resolved = resolvePreset({
+    preset: "ring",
+    params: {
+      softness: 0.4
+    }
+  });
+
+  assert.equal(resolved.preset, "ring");
+  assert.equal(resolved.resolvedParams.thickness, 0.2);
+  assert.equal(resolved.resolvedParams.softness, 0.4);
+  assert.equal(resolved.recipe.version, 1);
+  assert.equal(resolved.recipeLayerCount, resolved.recipe.layers.length);
+  assert.deepEqual(resolved.compilesToLayerTypes, ["ring", "blur"]);
+  assert.equal(resolved.recipe.layers[0].color.startsWith("rgba("), true);
+  assert.equal(resolved.message, "Preset resolved to a normalized recipe.");
+});
+
+test("core: resolvePreset matches the preset recipe used by generateTexture", () => {
+  const resolved = resolvePreset({
+    preset: "shockwave",
+    params: {
+      radius: 0.34,
+      thickness: 0.12,
+      softness: 0.4
+    }
+  });
+  const generated = generateTexture({
+    mode: "preset",
+    preset: "shockwave",
+    params: {
+      radius: 0.34,
+      thickness: 0.12,
+      softness: 0.4
+    },
+    width: 256,
+    height: 256,
+    seed: 7
+  });
+
+  assert.deepEqual(resolved.resolvedParams, generated.meta.params);
+  assert.deepEqual(resolved.recipe, generated.recipe);
 });
 
 test("core: generateTexture compiles the shockwave preset into a layered pulse recipe", () => {

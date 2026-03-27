@@ -7,10 +7,14 @@ Use the MCP tools in this order:
 
 1. `list_presets`
 2. `get_preset_schema`
-3. `generate_texture` with `mode: "preset"`
-4. `export_texture`
+3. If you only need a fast result, `generate_texture` with `mode: "preset"`
+4. If you need the preset as an editable recipe, call `resolve_preset`
+5. When continuing from `resolve_preset`, optionally `validate_recipe`, then `generate_texture` with `mode: "recipe"`
+6. `export_texture`
 
-If you need exact layer-by-layer control, switch to `recipe` mode instead.
+Treat this as two main workflows: `preset-first` and `recipe-first`.
+`resolve_preset` is an editable branch inside `preset-first`, not a third equal workflow.
+If you need exact layer-by-layer control from the beginning, switch to `recipe` mode instead.
 
 ## Preset Summary
 
@@ -30,6 +34,7 @@ If you need exact layer-by-layer control, switch to `recipe` mode instead.
 
 - Use presets when you want stable output quickly.
 - Use presets when an AI caller should only adjust a few high-level parameters.
+- Use `resolve_preset` when a preset is close but you still need layer-by-layer editing before rendering.
 - Use recipes when you need precise geometry, exact ordering, or custom combinations.
 
 ## Presets
@@ -226,6 +231,6 @@ Gradient color band for heatmaps, shader ramps, and palette mapping.
 1. Call `list_presets` and pick the closest semantic match.
 2. Call `get_preset_schema` and start from `defaultParams`.
 3. Override only the minimum parameters needed.
-4. Render with `generate_texture`.
-5. Export if the result is acceptable.
-6. Fall back to `recipe` mode only when the preset shape is not expressive enough.
+4. If the preset should stay high-level, render with `generate_texture`.
+5. If the preset should become editable, call `resolve_preset`, then continue with `validate_recipe` and `generate_texture(mode: "recipe")`.
+6. Export only after a successful `generate_texture` call.

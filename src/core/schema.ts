@@ -13,6 +13,16 @@ export const imageFormatSchema = z.enum(["png", "jpeg", "webp"]);
 export const workspaceRootSourceSchema = z.enum(["explicit", "env", "cwd"]);
 export const paramsRecordSchema = z.record(z.string(), z.unknown());
 export const jsonSchemaObjectSchema = z.record(z.string(), z.unknown());
+export const layerTypeSchema = z.enum([
+  "gradientCircle",
+  "circle",
+  "ring",
+  "rect",
+  "gradientRect",
+  "noise",
+  "blur",
+  "text"
+]);
 export const normalizedNumberSchema = z.number().min(0).max(1);
 export const cssColorSchema = z.string().superRefine((value, context) => {
   const validationMessage = getColorValidationMessage(value);
@@ -200,6 +210,41 @@ export const recipeSchema = z
   .strict()
   .superRefine(validateRecipeComplexity);
 
+const recipeToolInputSchema = z.unknown().superRefine((value, context) => {
+  if (typeof value === "string") {
+    context.addIssue({
+      code: "custom",
+      message: "Recipe must be an object. Pass the recipe object directly, not a JSON string."
+    });
+    return;
+  }
+
+  const parsedRecipe = recipeSchema.safeParse(value);
+
+  if (parsedRecipe.success) {
+    return;
+  }
+
+  for (const issue of parsedRecipe.error.issues) {
+    context.addIssue({
+      code: "custom",
+      message: issue.message,
+      path: issue.path
+    });
+  }
+});
+
+const recipeObjectOnlyInputSchema = z.unknown().superRefine((value, context) => {
+  if (typeof value !== "string") {
+    return;
+  }
+
+  context.addIssue({
+    code: "custom",
+    message: "Recipe must be an object. Pass the recipe object directly, not a JSON string."
+  });
+});
+
 export const renderOptionsSchema = z
   .object({
     width: textureDimensionSchema,
@@ -237,7 +282,7 @@ const generateTexturePresetInputSchema = z
 const generateTextureRecipeInputSchema = z
   .object({
     mode: z.literal("recipe"),
-    recipe: recipeSchema,
+    recipe: recipeToolInputSchema,
     width: textureDimensionSchema,
     height: textureDimensionSchema,
     seed: z.number().int().nonnegative().optional()
@@ -307,6 +352,24 @@ export const getWorkspaceInfoOutputSchema = z
   })
   .strict();
 
+export const resolvePresetInputSchema = z
+  .object({
+    preset: z.string().min(1),
+    params: paramsRecordSchema.optional()
+  })
+  .strict();
+
+export const resolvePresetOutputSchema = z
+  .object({
+    preset: z.string().min(1),
+    resolvedParams: paramsRecordSchema,
+    recipe: recipeSchema,
+    recipeLayerCount: z.number().int().nonnegative(),
+    compilesToLayerTypes: z.array(layerTypeSchema),
+    message: z.string()
+  })
+  .strict();
+
 export const presetCatalogItemSchema = z
   .object({
     name: z.string().min(1),
@@ -328,7 +391,7 @@ export const listPresetsOutputSchema = z
 
 export const layerCatalogItemSchema = z
   .object({
-    type: z.enum(["gradientCircle", "circle", "ring", "rect", "gradientRect", "noise", "blur", "text"]),
+    type: layerTypeSchema,
     category: z.enum(["draw", "effect"]),
     description: z.string().min(1),
     primaryParameters: z.array(z.string().min(1)),
@@ -352,7 +415,7 @@ export const getPresetSchemaInputSchema = z
 
 export const getLayerSchemaInputSchema = z
   .object({
-    type: z.enum(["gradientCircle", "circle", "ring", "rect", "gradientRect", "noise", "blur", "text"])
+    type: layerTypeSchema
   })
   .strict();
 
@@ -371,9 +434,7 @@ export const getPresetSchemaOutputSchema = z
     primaryParams: z.array(z.string().min(1)),
     commonUses: z.array(z.string().min(1)),
     tuningNotes: z.array(z.string().min(1)),
-    compilesToLayerTypes: z.array(
-      z.enum(["gradientCircle", "circle", "ring", "rect", "gradientRect", "noise", "blur", "text"])
-    ),
+    compilesToLayerTypes: z.array(layerTypeSchema),
     schema: jsonSchemaObjectSchema
   })
   .strict();
@@ -387,7 +448,7 @@ export const layerSchemaConstraintSchema = z
 
 export const getLayerSchemaOutputSchema = z
   .object({
-    type: z.enum(["gradientCircle", "circle", "ring", "rect", "gradientRect", "noise", "blur", "text"]),
+    type: layerTypeSchema,
     category: z.enum(["draw", "effect"]),
     description: z.string().min(1),
     mode: z.literal("recipe"),
@@ -409,7 +470,7 @@ export const getLayerSchemaOutputSchema = z
 
 export const validateRecipeInputSchema = z
   .object({
-    recipe: z.unknown()
+    recipe: recipeObjectOnlyInputSchema
   })
   .strict();
 

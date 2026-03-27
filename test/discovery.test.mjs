@@ -42,7 +42,9 @@ test("discovery: readReferenceResource returns runtime-generated markdown", () =
   assert.match(layerReference.text, /primary parameters/i);
   assert.match(presetPlaybook.text, /primaryParams/);
   assert.match(presetPlaybook.text, /compiles to layer types/i);
+  assert.match(presetPlaybook.text, /resolve_preset/);
   assert.match(workflowGuardrails.text, /workspaceRoot/);
+  assert.match(workflowGuardrails.text, /resolve_preset/);
   assert.match(workflowGuardrails.text, /default seed/i);
   assert.match(workflowGuardrails.text, /4096/);
 });
@@ -65,8 +67,10 @@ test("discovery: getWorkflowPrompt returns text guidance and rejects arguments",
   assert.ok(presetPrompt);
   assert.ok(recipePrompt);
   assert.match(presetPrompt.text, /list_presets/);
+  assert.match(presetPrompt.text, /resolve_preset/);
   assert.match(presetPrompt.text, /generate_texture/);
   assert.match(recipePrompt.text, /validate_recipe/);
+  assert.match(recipePrompt.text, /resolve_preset/);
   assert.match(recipePrompt.text, /applicationScope/);
   assert.throws(
     () => getWorkflowPrompt("recommended_preset_workflow", { unexpected: "value" }),

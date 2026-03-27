@@ -40,7 +40,7 @@ const referenceResources: ReferenceResource[] = [
     uri: "texture://docs/recipe-examples",
     name: "recipe-examples",
     title: "Recipe Examples",
-    description: "Runtime-generated MCP call examples for preset mode, recipe mode, validation, and export flows.",
+    description: "Runtime-generated MCP call examples for preset-first, resolve-to-recipe, recipe-first, validation, and export flows.",
     mimeType: "text/markdown",
     text: buildRecipeExamplesMarkdown()
   },
@@ -58,7 +58,7 @@ const workflowPrompts: WorkflowPrompt[] = [
   {
     name: "recommended_preset_workflow",
     title: "Recommended Preset Workflow",
-    description: "Guide the caller through the recommended preset-first discovery, generation, and export flow.",
+    description: "Guide the caller through the recommended preset-first workflow, including when to branch into `resolve_preset` for editable recipes.",
     text: [
       "Use this workflow when a built-in preset is likely to be enough and you want the fastest stable result.",
       "",
@@ -66,8 +66,10 @@ const workflowPrompts: WorkflowPrompt[] = [
       "1. `list_presets` to discover candidates.",
       "2. `get_preset_schema` for the selected preset.",
       "3. Start from `defaultParams`, then adjust `primaryParams` using `parameterSemantics`, `commonUses`, and `tuningNotes`.",
-      "4. Call `generate_texture` with `mode: \"preset\"`.",
-      "5. Call `export_texture` to save the current session result.",
+      "4. If the preset should stay a high-level shortcut, call `generate_texture` with `mode: \"preset\"`.",
+      "5. If the preset is only a starting point and you still want layer-level editing, call `resolve_preset` instead.",
+      "6. When continuing from `resolve_preset`, optionally call `validate_recipe`, then call `generate_texture` with `mode: \"recipe\"`.",
+      "7. Call `export_texture` only after a successful `generate_texture` step.",
       "",
       "Read these resources when you need more detail:",
       "- `texture://docs/preset-playbook`",
@@ -81,6 +83,7 @@ const workflowPrompts: WorkflowPrompt[] = [
     description: "Guide the caller through the recommended recipe-first discovery, validation, generation, and export flow.",
     text: [
       "Use this workflow when you need exact control over layer ordering, geometry, constraints, or composition notes.",
+      "If you started from a preset and then needed an editable recipe, use `resolve_preset` first and continue here from the validation step.",
       "",
       "Recommended call order:",
       "1. `list_layer_types` to discover local draw layers and fullscreen effects.",
